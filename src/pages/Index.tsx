@@ -1,12 +1,27 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import Header from "@/components/Header";
+import Hero from "@/components/Hero";
+import Problem from "@/components/Problem";
+import Solution from "@/components/Solution";
+import Demo from "@/components/Demo";
+import UseCases from "@/components/UseCases";
+import TechStack from "@/components/TechStack";
+import Footer from "@/components/Footer";
+import WeavePattern from "@/components/WeavePattern";
 
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="relative min-h-screen">
+      <WeavePattern />
+      <Header />
+      <main>
+        <Hero />
+        <Problem />
+        <Solution />
+        <Demo />
+        <UseCases />
+        <TechStack />
+      </main>
+      <Footer />
     </div>
   );
 };
