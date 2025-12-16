@@ -4,6 +4,7 @@ import Hero from "@/components/Hero";
 import Problem from "@/components/Problem";
 import Solution from "@/components/Solution";
 import Demo from "@/components/Demo";
+import Gallery from "@/components/Gallery";
 import UseCases from "@/components/UseCases";
 import TechStack from "@/components/TechStack";
 import Footer from "@/components/Footer";
@@ -28,6 +29,7 @@ const Index = () => {
         <Problem />
         <Solution />
         <Demo />
+        <Gallery />
         <UseCases />
         <TechStack />
       </main>
