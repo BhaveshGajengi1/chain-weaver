@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
+import ConnectWallet from "@/components/ConnectWallet";
 
 const navLinks = [
   { href: "#problem", label: "Problem" },
@@ -109,13 +110,9 @@ const Header = () => {
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
               Docs
             </Button>
-            <Button
-              variant="hero"
-              size="sm"
-              onClick={() => scrollToSection("#demo")}
-            >
-              Try Demo
-            </Button>
+            <div className="hidden sm:block">
+              <ConnectWallet />
+            </div>
             
             {/* Mobile menu toggle */}
             <motion.button
