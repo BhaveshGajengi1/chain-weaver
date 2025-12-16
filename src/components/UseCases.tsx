@@ -1,6 +1,10 @@
 import { Gamepad2, MessageCircle, Brain, ScrollText } from "lucide-react";
+import { motion } from "framer-motion";
+import { useScrollAnimation, fadeUpVariants, staggerContainer } from "@/hooks/useScrollAnimation";
 
 const UseCases = () => {
+  const { ref, isInView } = useScrollAnimation();
+
   const useCases = [
     {
       icon: Gamepad2,
@@ -29,11 +33,17 @@ const UseCases = () => {
   ];
 
   return (
-    <section id="use-cases" className="py-24 relative">
+    <section id="use-cases" className="py-24 relative" ref={ref}>
       <div className="container mx-auto px-6">
         <div className="max-w-5xl mx-auto">
           {/* Section header */}
-          <div className="text-center mb-16">
+          <motion.div
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            variants={fadeUpVariants}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6">
               Expanding The Frontier
               <br />
@@ -43,26 +53,42 @@ const UseCases = () => {
               DataLoom isn't just another dApp. It's a fundamental primitive that unlocks 
               entirely new verticals for the Arbitrum ecosystem.
             </p>
-          </div>
+          </motion.div>
 
           {/* Use case grid */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <motion.div
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            variants={staggerContainer}
+            className="grid md:grid-cols-2 gap-6"
+          >
             {useCases.map((useCase, index) => (
-              <div
+              <motion.div
                 key={index}
-                className="group relative p-8 rounded-2xl bg-gradient-card border border-border hover:border-primary/30 transition-all duration-500 overflow-hidden"
+                variants={fadeUpVariants}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                className="group relative p-8 rounded-2xl bg-gradient-card border border-border hover:border-primary/30 transition-colors duration-300 overflow-hidden"
               >
                 {/* Hover effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  whileHover={{ opacity: 1 }}
+                  className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent"
+                />
                 
                 {/* Icon glow */}
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                 <div className="relative">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
+                    <motion.div
+                      whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
+                      transition={{ duration: 0.5 }}
+                      className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors"
+                    >
                       <useCase.icon className="w-7 h-7 text-primary" />
-                    </div>
+                    </motion.div>
                     <div>
                       <h3 className="text-xl font-semibold">{useCase.title}</h3>
                       <span className="text-sm text-primary font-mono">{useCase.subtitle}</span>
@@ -70,9 +96,9 @@ const UseCases = () => {
                   </div>
                   <p className="text-muted-foreground">{useCase.description}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

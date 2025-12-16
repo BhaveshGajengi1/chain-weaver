@@ -1,6 +1,10 @@
 import { AlertTriangle, Server, DollarSign, Lock } from "lucide-react";
+import { motion } from "framer-motion";
+import { useScrollAnimation, fadeUpVariants, staggerContainer } from "@/hooks/useScrollAnimation";
 
 const Problem = () => {
+  const { ref, isInView } = useScrollAnimation();
+
   const problems = [
     {
       icon: DollarSign,
@@ -20,11 +24,17 @@ const Problem = () => {
   ];
 
   return (
-    <section id="problem" className="py-24 relative">
+    <section id="problem" className="py-24 relative" ref={ref}>
       <div className="container mx-auto px-6">
         <div className="max-w-4xl mx-auto">
           {/* Section header */}
-          <div className="text-center mb-16">
+          <motion.div
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            variants={fadeUpVariants}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-16"
+          >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-destructive/10 border border-destructive/20 mb-6">
               <AlertTriangle className="w-4 h-4 text-destructive" />
               <span className="text-sm text-destructive">The Problem</span>
@@ -39,31 +49,48 @@ const Problem = () => {
               or an autonomous virtual world. Then you hit the wall: storing that universe is 
               impossibly expensive.
             </p>
-          </div>
+          </motion.div>
 
           {/* Problem cards */}
-          <div className="grid md:grid-cols-3 gap-6">
+          <motion.div
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            variants={staggerContainer}
+            className="grid md:grid-cols-3 gap-6"
+          >
             {problems.map((problem, index) => (
-              <div
+              <motion.div
                 key={index}
-                className="group relative p-6 rounded-2xl bg-gradient-card border border-border hover:border-destructive/30 transition-all duration-300"
+                variants={fadeUpVariants}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                className="group relative p-6 rounded-2xl bg-gradient-card border border-border hover:border-destructive/30 transition-colors duration-300"
               >
                 <div className="absolute inset-0 rounded-2xl bg-destructive/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center mb-4">
+                  <motion.div
+                    whileHover={{ rotate: [0, -10, 10, 0] }}
+                    transition={{ duration: 0.5 }}
+                    className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center mb-4"
+                  >
                     <problem.icon className="w-6 h-6 text-destructive" />
-                  </div>
+                  </motion.div>
                   <h3 className="text-xl font-semibold mb-2">{problem.title}</h3>
                   <p className="text-muted-foreground">{problem.description}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
           {/* Visual separator */}
-          <div className="mt-20 flex items-center justify-center">
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={isInView ? { scaleX: 1 } : { scaleX: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="mt-20 flex items-center justify-center"
+          >
             <div className="w-full max-w-md h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

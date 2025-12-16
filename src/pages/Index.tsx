@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Problem from "@/components/Problem";
@@ -9,6 +10,15 @@ import Footer from "@/components/Footer";
 import WeavePattern from "@/components/WeavePattern";
 
 const Index = () => {
+  useEffect(() => {
+    // Smooth scroll behavior for the entire page
+    document.documentElement.style.scrollBehavior = "smooth";
+    
+    return () => {
+      document.documentElement.style.scrollBehavior = "auto";
+    };
+  }, []);
+
   return (
     <div className="relative min-h-screen">
       <WeavePattern />
