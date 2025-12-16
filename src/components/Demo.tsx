@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Palette, RotateCcw } from "lucide-react";
+import { ExternalLink, Palette, RotateCcw, Upload, Wallet, Loader2 } from "lucide-react";
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollAnimation, fadeUpVariants } from "@/hooks/useScrollAnimation";
 import { toast } from "sonner";
+import { useAccount, useConnect } from "wagmi";
+import { arbitrum } from "wagmi/chains";
 
 const Demo = () => {
   const { ref, isInView } = useScrollAnimation();
@@ -12,6 +14,12 @@ const Demo = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [selectedColor, setSelectedColor] = useState("#E9A23B");
   const pixelIdRef = useRef(0);
+  const [isStoring, setIsStoring] = useState(false);
+
+  const { address, isConnected, chain } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+
+  const isCorrectNetwork = chain?.id === arbitrum.id;
 
   const colors = ["#E9A23B", "#3B82F6", "#10B981", "#EF4444", "#8B5CF6", "#F59E0B"];
 
@@ -50,6 +58,45 @@ const Demo = () => {
   const handleClear = () => {
     setPixels([]);
     toast.success("Canvas cleared");
+  };
+
+  const handleConnect = () => {
+    const metamask = connectors.find(c => c.id === 'injected');
+    if (metamask) {
+      connect({ connector: metamask });
+    }
+  };
+
+  const handleStoreOnChain = async () => {
+    if (!isConnected || pixels.length === 0) return;
+
+    setIsStoring(true);
+    toast.loading("Preparing transaction...", { id: "store-tx" });
+
+    // Simulate transaction preparation
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    toast.loading("Compressing pixel data via DataLoom...", { id: "store-tx" });
+    
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    toast.loading("Waiting for wallet confirmation...", { id: "store-tx" });
+
+    // Simulate wallet confirmation delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Simulate successful transaction
+    toast.success(
+      `Successfully stored ${pixels.length} pixels on-chain!`,
+      { 
+        id: "store-tx",
+        description: "Transaction confirmed on Arbitrum",
+        action: {
+          label: "View TX",
+          onClick: () => window.open("https://arbiscan.io", "_blank"),
+        },
+      }
+    );
+
+    setIsStoring(false);
   };
 
   return (
@@ -200,24 +247,72 @@ const Demo = () => {
               {/* Status bar */}
               <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-secondary/30">
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <motion.div
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="w-2 h-2 rounded-full bg-accent"
-                    />
-                    <span className="text-xs text-muted-foreground">Connected to Arbitrum</span>
-                  </div>
+                  {isConnected ? (
+                    <div className="flex items-center gap-2">
+                      <motion.div
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className={`w-2 h-2 rounded-full ${isCorrectNetwork ? 'bg-accent' : 'bg-destructive'}`}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {isCorrectNetwork 
+                          ? `Connected: ${address?.slice(0, 6)}...${address?.slice(-4)}`
+                          : 'Wrong network - switch to Arbitrum'
+                        }
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                      <span className="text-xs text-muted-foreground">Wallet not connected</span>
+                    </div>
+                  )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClear}
-                  className="text-xs"
-                >
-                  <RotateCcw className="w-3 h-3 mr-1" />
-                  Clear
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClear}
+                    className="text-xs"
+                    disabled={pixels.length === 0}
+                  >
+                    <RotateCcw className="w-3 h-3 mr-1" />
+                    Clear
+                  </Button>
+                  
+                  {!isConnected ? (
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      onClick={handleConnect}
+                      disabled={isPending}
+                      className="text-xs"
+                    >
+                      <Wallet className="w-3 h-3 mr-1" />
+                      {isPending ? 'Connecting...' : 'Connect to Store'}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="hero"
+                      size="sm"
+                      onClick={handleStoreOnChain}
+                      disabled={pixels.length === 0 || isStoring || !isCorrectNetwork}
+                      className="text-xs"
+                    >
+                      {isStoring ? (
+                        <>
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          Storing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3 h-3 mr-1" />
+                          Store On-Chain
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
