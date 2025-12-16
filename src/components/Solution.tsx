@@ -1,6 +1,10 @@
 import { Zap, GitBranch, Layers, ArrowDown } from "lucide-react";
+import { motion } from "framer-motion";
+import { useScrollAnimation, fadeUpVariants } from "@/hooks/useScrollAnimation";
 
 const Solution = () => {
+  const { ref, isInView } = useScrollAnimation();
+
   const steps = [
     {
       icon: Zap,
@@ -26,14 +30,20 @@ const Solution = () => {
   ];
 
   return (
-    <section id="solution" className="py-24 relative">
+    <section id="solution" className="py-24 relative" ref={ref}>
       {/* Background accent */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
 
       <div className="container mx-auto px-6 relative">
         <div className="max-w-5xl mx-auto">
           {/* Section header */}
-          <div className="text-center mb-20">
+          <motion.div
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            variants={fadeUpVariants}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-20"
+          >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
               <Zap className="w-4 h-4 text-primary" />
               <span className="text-sm text-primary">The Solution</span>
@@ -50,16 +60,28 @@ const Solution = () => {
               programmable data loom—active, verifiable, and composable data infrastructure 
               native to Arbitrum.
             </p>
-          </div>
+          </motion.div>
 
           {/* Process steps */}
           <div className="relative">
             {/* Connecting line */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-primary via-accent to-primary opacity-30 hidden lg:block" />
+            <motion.div
+              initial={{ scaleY: 0 }}
+              animate={isInView ? { scaleY: 1 } : { scaleY: 0 }}
+              transition={{ duration: 1, delay: 0.3 }}
+              style={{ transformOrigin: "top" }}
+              className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-primary via-accent to-primary opacity-30 hidden lg:block"
+            />
 
             <div className="space-y-8 lg:space-y-0">
               {steps.map((step, index) => (
-                <div key={index} className="relative">
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: index % 2 === 0 ? -50 : 50 }}
+                  animate={isInView ? { opacity: 1, x: 0 } : {}}
+                  transition={{ duration: 0.6, delay: 0.2 + index * 0.2 }}
+                  className="relative"
+                >
                   <div
                     className={`flex flex-col lg:flex-row items-center gap-8 ${
                       index % 2 === 1 ? "lg:flex-row-reverse" : ""
@@ -67,7 +89,8 @@ const Solution = () => {
                   >
                     {/* Content */}
                     <div className={`flex-1 ${index % 2 === 1 ? "lg:text-right" : ""}`}>
-                      <div
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
                         className={`inline-block px-3 py-1 rounded-full text-xs font-mono mb-4 ${
                           step.color === "primary"
                             ? "bg-primary/10 text-primary"
@@ -75,13 +98,17 @@ const Solution = () => {
                         }`}
                       >
                         STEP {step.step}
-                      </div>
+                      </motion.div>
                       <h3 className="text-2xl sm:text-3xl font-bold mb-3">{step.title}</h3>
                       <p className="text-muted-foreground max-w-md">{step.description}</p>
                     </div>
 
                     {/* Icon */}
-                    <div className="relative">
+                    <motion.div
+                      className="relative"
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                    >
                       <div
                         className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
                           step.color === "primary"
@@ -96,12 +123,14 @@ const Solution = () => {
                         />
                       </div>
                       {/* Glow effect */}
-                      <div
-                        className={`absolute inset-0 rounded-2xl blur-xl opacity-30 ${
+                      <motion.div
+                        animate={{ opacity: [0.3, 0.5, 0.3] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className={`absolute inset-0 rounded-2xl blur-xl ${
                           step.color === "primary" ? "bg-primary" : "bg-accent"
                         }`}
                       />
-                    </div>
+                    </motion.div>
 
                     {/* Spacer */}
                     <div className="flex-1 hidden lg:block" />
@@ -109,11 +138,15 @@ const Solution = () => {
 
                   {/* Arrow between steps */}
                   {index < steps.length - 1 && (
-                    <div className="flex justify-center my-6 lg:hidden">
+                    <motion.div
+                      animate={{ y: [0, 8, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="flex justify-center my-6 lg:hidden"
+                    >
                       <ArrowDown className="w-6 h-6 text-muted-foreground" />
-                    </div>
+                    </motion.div>
                   )}
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
