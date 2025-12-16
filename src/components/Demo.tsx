@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Palette, RotateCcw, Upload, Wallet, Loader2 } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollAnimation, fadeUpVariants } from "@/hooks/useScrollAnimation";
 import { toast } from "sonner";
 import { useAccount, useConnect } from "wagmi";
-import { arbitrum } from "wagmi/chains";
+import { arbitrum, arbitrumSepolia } from "wagmi/chains";
+import { useDataLoom } from "@/hooks/useDataLoom";
 
 const Demo = () => {
   const { ref, isInView } = useScrollAnimation();
@@ -14,12 +15,12 @@ const Demo = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [selectedColor, setSelectedColor] = useState("#E9A23B");
   const pixelIdRef = useRef(0);
-  const [isStoring, setIsStoring] = useState(false);
 
   const { address, isConnected, chain } = useAccount();
   const { connect, connectors, isPending } = useConnect();
+  const { storePixels, isStoring, isConfirmed, isContractDeployed, txHash } = useDataLoom();
 
-  const isCorrectNetwork = chain?.id === arbitrum.id;
+  const isCorrectNetwork = chain?.id === arbitrum.id || chain?.id === arbitrumSepolia.id;
 
   const colors = ["#E9A23B", "#3B82F6", "#10B981", "#EF4444", "#8B5CF6", "#F59E0B"];
 
@@ -70,34 +71,47 @@ const Demo = () => {
   const handleStoreOnChain = async () => {
     if (!isConnected || pixels.length === 0) return;
 
-    setIsStoring(true);
-    toast.loading("Preparing transaction...", { id: "store-tx" });
-
-    // Simulate transaction preparation
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast.loading("Compressing pixel data via DataLoom...", { id: "store-tx" });
+    const pixelData = pixels.map(p => ({ x: p.x, y: p.y, color: p.color }));
     
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    toast.loading("Waiting for wallet confirmation...", { id: "store-tx" });
-
-    // Simulate wallet confirmation delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Simulate successful transaction
-    toast.success(
-      `Successfully stored ${pixels.length} pixels on-chain!`,
-      { 
-        id: "store-tx",
-        description: "Transaction confirmed on Arbitrum",
-        action: {
-          label: "View TX",
-          onClick: () => window.open("https://arbiscan.io", "_blank"),
-        },
+    if (isContractDeployed) {
+      // Use actual contract
+      const hash = await storePixels(pixelData, `Canvas created at ${new Date().toISOString()}`);
+      if (hash) {
+        toast.success(`Stored ${pixels.length} pixels on-chain!`, {
+          id: 'store',
+          description: 'Transaction confirmed',
+          action: {
+            label: 'View TX',
+            onClick: () => window.open(`https://sepolia.arbiscan.io/tx/${hash}`, '_blank'),
+          },
+        });
       }
-    );
-
-    setIsStoring(false);
+    } else {
+      // Demo mode - simulate transaction
+      toast.loading("Preparing transaction...", { id: "store-tx" });
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast.loading("Compressing pixel data via DataLoom...", { id: "store-tx" });
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.loading("Waiting for wallet confirmation...", { id: "store-tx" });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success(
+        `Demo: ${pixels.length} pixels would be stored on-chain!`,
+        { 
+          id: "store-tx",
+          description: "Deploy contract to enable real storage",
+        }
+      );
+    }
   };
+
+  // Show success when transaction confirms
+  useEffect(() => {
+    if (isConfirmed && txHash) {
+      toast.success('Transaction confirmed!', {
+        description: 'Your artwork is now stored forever on Arbitrum',
+      });
+    }
+  }, [isConfirmed, txHash]);
 
   return (
     <section id="demo" className="py-24 relative" ref={ref}>
