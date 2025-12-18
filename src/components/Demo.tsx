@@ -272,7 +272,7 @@ const Demo = () => {
                       <span className="text-xs text-muted-foreground">
                         {isCorrectNetwork 
                           ? `Connected: ${address?.slice(0, 6)}...${address?.slice(-4)}`
-                          : 'Wrong network - switch to Arbitrum'
+                          : 'Wrong network - switch to Arbitrum Sepolia'
                         }
                       </span>
                     </div>
