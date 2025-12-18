@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useScrollAnimation, fadeUpVariants } from "@/hooks/useScrollAnimation";
 import { toast } from "sonner";
 import { useAccount, useConnect } from "wagmi";
-import { arbitrum, arbitrumSepolia } from "wagmi/chains";
+import { arbitrumSepolia } from "wagmi/chains";
 import { useDataLoom } from "@/hooks/useDataLoom";
 
 const Demo = () => {
