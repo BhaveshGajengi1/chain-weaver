@@ -55,6 +55,13 @@ export function useDataLoom() {
 
     try {
       const encodedPixels = encodePixels(pixels);
+      
+      console.log('Storing pixels:', {
+        contractAddress,
+        encodedPixels,
+        metadata,
+        isContractDeployed,
+      });
 
       toast.loading('Compressing pixel data via DataLoom...', { id: 'store' });
 
@@ -64,6 +71,8 @@ export function useDataLoom() {
         functionName: 'storePixels',
         args: [encodedPixels, metadata],
       } as any);
+      
+      console.log('Transaction hash:', hash);
 
       toast.loading('Waiting for transaction confirmation...', { id: 'store' });
 
