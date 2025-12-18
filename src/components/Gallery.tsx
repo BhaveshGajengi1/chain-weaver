@@ -1,12 +1,15 @@
 import { motion } from "framer-motion";
 import { useScrollAnimation, fadeUpVariants } from "@/hooks/useScrollAnimation";
 import { useGallery } from "@/hooks/useDataLoom";
-import { Image, ExternalLink, Loader2, AlertCircle } from "lucide-react";
+import { Image, ExternalLink, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getArbiscanUrl } from "@/lib/contracts";
+import { useAccount } from "wagmi";
 
 const Gallery = () => {
   const { ref, isInView } = useScrollAnimation();
-  const { canvases, isLoading, isContractDeployed, totalCount } = useGallery();
+  const { canvases, isLoading, isContractDeployed, totalCount, hasMore, loadMore, refresh } = useGallery();
+  const { chain } = useAccount();
 
   return (
     <section id="gallery" className="py-24 relative" ref={ref}>
@@ -28,7 +31,7 @@ const Gallery = () => {
               Eternal Artworks
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Browse pixel art stored forever on Arbitrum via DataLoom. Each piece is 
+              Browse pixel art stored forever on Arbitrum via DataLoom. Each piece is
               compressed, verified, and retrievable directly from the blockchain.
             </p>
           </motion.div>
@@ -58,7 +61,7 @@ const Gallery = () => {
                   </motion.div>
                   <h3 className="text-xl font-semibold mb-3">Contract Deployment Pending</h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    The DataLoom contract is being deployed to Arbitrum Sepolia testnet. 
+                    The DataLoom contract is being deployed to Arbitrum Sepolia testnet.
                     Once deployed, stored artworks will appear here.
                   </p>
                   <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
@@ -93,7 +96,7 @@ const Gallery = () => {
                   </motion.div>
                   <h3 className="text-xl font-semibold mb-3">No Artworks Yet</h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    Be the first to create eternal pixel art! Draw on the canvas above 
+                    Be the first to create eternal pixel art! Draw on the canvas above
                     and store your masterpiece on-chain.
                   </p>
                   <Button
@@ -111,6 +114,16 @@ const Gallery = () => {
                   <p className="text-sm text-muted-foreground">
                     {totalCount} artwork{totalCount !== 1 ? 's' : ''} stored on-chain
                   </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refresh}
+                    disabled={isLoading}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {canvases.map((canvas, index) => (
@@ -161,15 +174,41 @@ const Gallery = () => {
                           <span className="font-mono">
                             {canvas.creator.slice(0, 6)}...{canvas.creator.slice(-4)}
                           </span>
-                          <button className="flex items-center gap-1 hover:text-primary transition-colors">
+                          <a
+                            href={getArbiscanUrl(chain?.id || 421614, canvas.creator, 'address')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-primary transition-colors"
+                          >
                             <ExternalLink className="w-3 h-3" />
-                            View TX
-                          </button>
+                            View Address
+                          </a>
                         </div>
                       </div>
                     </motion.div>
                   ))}
                 </div>
+
+                {/* Load More button */}
+                {hasMore && (
+                  <div className="flex justify-center mt-8">
+                    <Button
+                      variant="outline"
+                      onClick={loadMore}
+                      disabled={isLoading}
+                      className="gap-2"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Load More'
+                      )}
+                    </Button>
+                  </div>
+                )}
               </>
             )}
           </motion.div>

@@ -3,7 +3,7 @@ import { arbitrum, arbitrumSepolia } from 'wagmi/chains';
 // TODO: Replace with your deployed DataLoom contract address
 export const DATALOOM_CONTRACT_ADDRESS = {
   [arbitrum.id]: '0x0000000000000000000000000000000000000000' as `0x${string}`,
-  [arbitrumSepolia.id]: '0x0000000000000000000000000000000000000000' as `0x${string}`, // Update with testnet address
+  [arbitrumSepolia.id]: '0x51153772D6E88FEF51467850390256F6bC61b4a4' as `0x${string}`,
 } as const;
 
 // DataLoom Contract ABI - Update with your actual ABI
@@ -74,21 +74,31 @@ export function encodePixels(pixels: PixelData[]): `0x${string}` {
 // Decode bytes back to pixels
 export function decodePixels(data: string): PixelData[] {
   if (!data || data === '0x') return [];
-  
+
   const hex = data.replace('0x', '');
   const pixels: PixelData[] = [];
-  
+
   // Each pixel is 14 hex chars (4 + 4 + 6)
   for (let i = 0; i < hex.length; i += 14) {
     const chunk = hex.slice(i, i + 14);
     if (chunk.length < 14) break;
-    
+
     pixels.push({
       x: parseInt(chunk.slice(0, 4), 16),
       y: parseInt(chunk.slice(4, 8), 16),
       color: `#${chunk.slice(8, 14)}`,
     });
   }
-  
+
   return pixels;
 }
+
+// Get Arbiscan explorer URL for transaction or address
+export function getArbiscanUrl(chainId: number, hash: string, type: 'tx' | 'address' = 'tx'): string {
+  const baseUrl = chainId === arbitrum.id
+    ? 'https://arbiscan.io'
+    : 'https://sepolia.arbiscan.io';
+
+  return `${baseUrl}/${type}/${hash}`;
+}
+
