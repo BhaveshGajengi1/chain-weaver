@@ -1,8 +1,7 @@
-import { arbitrum, arbitrumSepolia } from "wagmi/chains";
+import { arbitrumSepolia } from "wagmi/chains";
 
-// TODO: Replace with your deployed DataLoom contract address
+// DataLoom contract deployed on Arbitrum Sepolia
 export const DATALOOM_CONTRACT_ADDRESS = {
-  [arbitrum.id]: "0x0000000000000000000000000000000000000000" as `0x${string}`,
   [arbitrumSepolia.id]: "0xffAfD3E3673C67e381D9Ea74E05A258701a91226" as `0x${string}`,
 } as const;
 
@@ -97,7 +96,5 @@ export function decodePixels(data: string): PixelData[] {
 
 // Get Arbiscan explorer URL for transaction or address
 export function getArbiscanUrl(chainId: number, hash: string, type: "tx" | "address" = "tx"): string {
-  const baseUrl = chainId === arbitrum.id ? "https://arbiscan.io" : "https://sepolia.arbiscan.io";
-
-  return `${baseUrl}/${type}/${hash}`;
+  return `https://sepolia.arbiscan.io/${type}/${hash}`;
 }
