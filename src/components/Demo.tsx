@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollAnimation, fadeUpVariants } from "@/hooks/useScrollAnimation";
 import { toast } from "sonner";
-import { useAccount, useConnect } from "wagmi";
+import { useAccount, useConnect, useSwitchChain } from "wagmi";
 import { arbitrumSepolia } from "wagmi/chains";
 import { useDataLoom } from "@/hooks/useDataLoom";
 
@@ -18,6 +18,7 @@ const Demo = () => {
 
   const { address, isConnected, chain } = useAccount();
   const { connect, connectors, isPending } = useConnect();
+  const { switchChain } = useSwitchChain();
   const { storePixels, isStoring, isConfirmed, isContractDeployed, txHash } = useDataLoom();
 
   // Contract is only deployed on Sepolia for now
@@ -269,12 +270,18 @@ const Demo = () => {
                         transition={{ duration: 2, repeat: Infinity }}
                         className={`w-2 h-2 rounded-full ${isCorrectNetwork ? 'bg-accent' : 'bg-destructive'}`}
                       />
-                      <span className="text-xs text-muted-foreground">
-                        {isCorrectNetwork 
-                          ? `Connected: ${address?.slice(0, 6)}...${address?.slice(-4)}`
-                          : 'Wrong network - switch to Arbitrum Sepolia'
-                        }
-                      </span>
+                      {isCorrectNetwork ? (
+                        <span className="text-xs text-muted-foreground">
+                          Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => switchChain({ chainId: arbitrumSepolia.id })}
+                          className="text-xs text-destructive hover:underline"
+                        >
+                          Wrong network - click to switch to Arbitrum Sepolia
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
