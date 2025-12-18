@@ -20,7 +20,8 @@ const Demo = () => {
   const { connect, connectors, isPending } = useConnect();
   const { storePixels, isStoring, isConfirmed, isContractDeployed, txHash } = useDataLoom();
 
-  const isCorrectNetwork = chain?.id === arbitrum.id || chain?.id === arbitrumSepolia.id;
+  // Contract is only deployed on Sepolia for now
+  const isCorrectNetwork = chain?.id === arbitrumSepolia.id;
 
   const colors = ["#E9A23B", "#3B82F6", "#10B981", "#EF4444", "#8B5CF6", "#F59E0B"];
 
