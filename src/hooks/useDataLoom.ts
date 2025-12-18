@@ -91,7 +91,7 @@ export function useDataLoom() {
         abi: DATALOOM_ABI,
         functionName: 'getCanvas',
         args: [canvasId],
-      }) as [string, string, `0x${string}`, bigint];
+      } as any) as [string, string, `0x${string}`, bigint];
 
       const [pixelDataHex, metadata, creator, timestamp] = result;
       const pixels = decodePixels(pixelDataHex);
