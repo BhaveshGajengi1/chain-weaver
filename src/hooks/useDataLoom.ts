@@ -76,15 +76,40 @@ export function useDataLoom() {
       hash: txHash,
     });
 
-  const pickNiceError = (error: any) => {
-    return (
-      error?.shortMessage ||
-      error?.cause?.shortMessage ||
-      error?.cause?.reason ||
-      error?.details ||
-      error?.message ||
-      'Transaction failed'
-    );
+  const pickNiceError = (error: any): string => {
+    // User rejected the transaction
+    if (error?.code === 4001 || error?.cause?.code === 4001 || 
+        error?.message?.includes('User rejected') || error?.message?.includes('user rejected')) {
+      return 'Transaction cancelled';
+    }
+    
+    // Insufficient funds
+    if (error?.message?.includes('insufficient funds') || error?.cause?.message?.includes('insufficient funds')) {
+      return 'Insufficient ETH for gas fees';
+    }
+
+    // Contract revert - extract reason if possible
+    if (error?.cause?.reason) {
+      return `Contract error: ${error.cause.reason}`;
+    }
+
+    // Generic revert
+    if (error?.message?.includes('revert') || error?.cause?.message?.includes('revert')) {
+      return 'Transaction reverted by contract';
+    }
+
+    // Don't expose raw JSON-RPC errors
+    if (error?.message?.includes('JSON-RPC') || error?.message?.includes('Internal')) {
+      return 'Transaction failed. Please try again.';
+    }
+
+    // Prefer short messages
+    const msg = error?.shortMessage || error?.cause?.shortMessage;
+    if (msg && !msg.includes('JSON-RPC')) {
+      return msg;
+    }
+
+    return 'Transaction failed. Please try again.';
   };
 
   // Store pixels on-chain

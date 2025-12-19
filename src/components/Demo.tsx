@@ -76,17 +76,13 @@ const Demo = () => {
     const pixelData = pixels.map(p => ({ x: p.x, y: p.y, color: p.color }));
     
     if (isContractDeployed) {
-      // Use actual contract
+      // Use actual contract - MetaMask will prompt user
       const hash = await storePixels(pixelData, `Canvas created at ${new Date().toISOString()}`);
+      // Success toast is handled in useEffect when isConfirmed changes
+      // storePixels handles error toasts internally
       if (hash) {
-        toast.success(`Stored ${pixels.length} pixels on-chain!`, {
-          id: 'store',
-          description: 'Transaction confirmed',
-          action: {
-            label: 'View TX',
-            onClick: () => window.open(`https://sepolia.arbiscan.io/tx/${hash}`, '_blank'),
-          },
-        });
+        // Transaction submitted, waiting for confirmation
+        // The "Waiting for transaction confirmation..." toast is already shown by storePixels
       }
     } else {
       // Demo mode - simulate transaction
@@ -109,11 +105,16 @@ const Demo = () => {
   // Show success when transaction confirms
   useEffect(() => {
     if (isConfirmed && txHash) {
-      toast.success('Transaction confirmed!', {
+      toast.success(`Stored ${pixels.length} pixels on-chain!`, {
+        id: 'store',
         description: 'Your artwork is now stored forever on Arbitrum',
+        action: {
+          label: 'View TX',
+          onClick: () => window.open(`https://sepolia.arbiscan.io/tx/${txHash}`, '_blank'),
+        },
       });
     }
-  }, [isConfirmed, txHash]);
+  }, [isConfirmed, txHash, pixels.length]);
 
   return (
     <section id="demo" className="py-24 relative" ref={ref}>
