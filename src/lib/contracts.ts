@@ -5,51 +5,89 @@ export const DATALOOM_CONTRACT_ADDRESS = {
   [arbitrumSepolia.id]: "0xffAfD3E3673C67e381D9Ea74E05A258701a91226" as `0x${string}`,
 } as const;
 
-// DataLoom Contract ABI - Update with your actual ABI
+// DataLoom Contract ABI
+// Note: We include both camelCase + snake_case function names since some deployments
+// (e.g. Rust/Stylus) expose snake_case ABI names.
 export const DATALOOM_ABI = [
   {
-    name: "storePixels",
-    type: "function",
-    stateMutability: "nonpayable",
+    name: 'storePixels',
+    type: 'function',
+    stateMutability: 'nonpayable',
     inputs: [
-      { name: "pixelData", type: "bytes" },
-      { name: "metadata", type: "string" },
+      { name: 'pixelData', type: 'bytes' },
+      { name: 'metadata', type: 'string' },
     ],
-    outputs: [{ name: "canvasId", type: "uint256" }],
+    outputs: [{ name: 'canvasId', type: 'uint256' }],
   },
   {
-    name: "getCanvas",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "canvasId", type: "uint256" }],
+    name: 'store_pixels',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'pixel_data', type: 'bytes' },
+      { name: 'metadata', type: 'string' },
+    ],
+    outputs: [{ name: 'canvas_id', type: 'uint256' }],
+  },
+  {
+    name: 'getCanvas',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'canvasId', type: 'uint256' }],
     outputs: [
-      { name: "pixelData", type: "bytes" },
-      { name: "metadata", type: "string" },
-      { name: "creator", type: "address" },
-      { name: "timestamp", type: "uint256" },
+      { name: 'pixelData', type: 'bytes' },
+      { name: 'metadata', type: 'string' },
+      { name: 'creator', type: 'address' },
+      { name: 'timestamp', type: 'uint256' },
     ],
   },
   {
-    name: "getCanvasCount",
-    type: "function",
-    stateMutability: "view",
+    name: 'get_canvas',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'canvas_id', type: 'uint256' }],
+    outputs: [
+      { name: 'pixel_data', type: 'bytes' },
+      { name: 'metadata', type: 'string' },
+      { name: 'creator', type: 'address' },
+      { name: 'timestamp', type: 'uint256' },
+    ],
+  },
+  {
+    name: 'getCanvasCount',
+    type: 'function',
+    stateMutability: 'view',
     inputs: [],
-    outputs: [{ name: "", type: "uint256" }],
+    outputs: [{ name: '', type: 'uint256' }],
   },
   {
-    name: "getCanvasesByCreator",
-    type: "function",
-    stateMutability: "view",
-    inputs: [{ name: "creator", type: "address" }],
-    outputs: [{ name: "", type: "uint256[]" }],
+    name: 'get_canvas_count',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
   },
   {
-    name: "CanvasStored",
-    type: "event",
+    name: 'getCanvasesByCreator',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'creator', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256[]' }],
+  },
+  {
+    name: 'get_canvases_by_creator',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'creator', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256[]' }],
+  },
+  {
+    name: 'CanvasStored',
+    type: 'event',
     inputs: [
-      { name: "canvasId", type: "uint256", indexed: true },
-      { name: "creator", type: "address", indexed: true },
-      { name: "timestamp", type: "uint256", indexed: false },
+      { name: 'canvasId', type: 'uint256', indexed: true },
+      { name: 'creator', type: 'address', indexed: true },
+      { name: 'timestamp', type: 'uint256', indexed: false },
     ],
   },
 ] as const;
