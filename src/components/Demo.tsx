@@ -19,7 +19,7 @@ const Demo = () => {
   const { address, isConnected, chain } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { switchChain } = useSwitchChain();
-  const { storePixels, isStoring, isConfirmed, isContractDeployed, txHash, canvasCount, refetchCount } = useDataLoom();
+  const { storePixels, isStoring, isConfirmed, isContractDeployed, txHash } = useDataLoom();
 
   // Contract is only deployed on Sepolia for now
   const isCorrectNetwork = chain?.id === arbitrumSepolia.id;
@@ -107,21 +107,14 @@ const Demo = () => {
     }
   };
 
-  // Show success when transaction confirms and refresh count
+  // Show success when transaction confirms
   useEffect(() => {
     if (isConfirmed && txHash) {
-      const shortHash = `${txHash.slice(0, 6)}...${txHash.slice(-4)}`;
       toast.success('Transaction confirmed!', {
-        id: 'store',
-        description: `TX: ${shortHash} - Stored on Arbitrum`,
-        action: {
-          label: 'View',
-          onClick: () => window.open(`https://sepolia.arbiscan.io/tx/${txHash}`, '_blank'),
-        },
+        description: 'Your artwork is now stored forever on Arbitrum',
       });
-      refetchCount();
     }
-  }, [isConfirmed, txHash, refetchCount]);
+  }, [isConfirmed, txHash]);
 
   return (
     <section id="demo" className="py-24 relative" ref={ref}>
@@ -176,29 +169,16 @@ const Demo = () => {
                     eternal-canvas.arb
                   </span>
                 </div>
-                <div className="flex items-center gap-4">
-                  <motion.div
-                    key={pixels.length}
-                    initial={{ scale: 1.2 }}
-                    animate={{ scale: 1 }}
-                    className="flex items-center gap-2"
-                  >
-                    <span className="text-xs text-muted-foreground">
-                      {pixels.length} pixels drawn
-                    </span>
-                  </motion.div>
-                  {isContractDeployed && canvasCount !== undefined && (
-                    <motion.div
-                      key={Number(canvasCount)}
-                      initial={{ scale: 1.2, color: 'hsl(var(--accent))' }}
-                      animate={{ scale: 1, color: 'hsl(var(--muted-foreground))' }}
-                      className="flex items-center gap-1 text-xs"
-                    >
-                      <span className="text-accent">{Number(canvasCount)}</span>
-                      <span className="text-muted-foreground">stored on-chain</span>
-                    </motion.div>
-                  )}
-                </div>
+                <motion.div
+                  key={pixels.length}
+                  initial={{ scale: 1.2 }}
+                  animate={{ scale: 1 }}
+                  className="flex items-center gap-2"
+                >
+                  <span className="text-xs text-muted-foreground">
+                    {pixels.length} pixels drawn
+                  </span>
+                </motion.div>
               </div>
 
               {/* Color picker */}

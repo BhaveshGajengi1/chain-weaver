@@ -16,8 +16,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
-const MAX_PIXELS_PER_TX = 400;
-const MAX_CALLDATA_BYTES = 8_000; // safety cap for wallet/RPC limits
 
 type GetCanvasFnName = 'getCanvas' | 'get_canvas';
 
@@ -79,19 +77,14 @@ export function useDataLoom() {
     });
 
   const pickNiceError = (error: any) => {
-    const base =
+    return (
       error?.shortMessage ||
       error?.cause?.shortMessage ||
       error?.cause?.reason ||
       error?.details ||
       error?.message ||
-      'Transaction failed';
-
-    if (typeof base === 'string' && base.toLowerCase().includes('execution reverted')) {
-      return 'Transaction reverted (often due to large pixel data). Try drawing fewer pixels.';
-    }
-
-    return base;
+      'Transaction failed'
+    );
   };
 
   // Store pixels on-chain
@@ -110,47 +103,28 @@ export function useDataLoom() {
       setIsStoring(true);
 
       try {
-        if (pixels.length > MAX_PIXELS_PER_TX) {
-          toast.error(`Too many pixels to store in one TX (${pixels.length}). Draw ≤ ${MAX_PIXELS_PER_TX} pixels.`, {
-            id: 'store',
-          });
-          return null;
-        }
-
         const encodedPixels = encodePixels(pixels);
-        const calldataBytes = Math.max(0, (encodedPixels.length - 2) / 2);
-        if (calldataBytes > MAX_CALLDATA_BYTES) {
-          toast.error(`Artwork data is too large (${calldataBytes} bytes). Draw fewer pixels and try again.`, {
-            id: 'store',
-          });
-          return null;
-        }
-
-        const functionName =
-          countSnake !== undefined ? ('store_pixels' as const) : ('storePixels' as const);
 
         console.log('Storing pixels:', {
           contractAddress,
-          functionName,
           pixelCount: pixels.length,
-          calldataBytes,
+          encodedLength: encodedPixels.length,
           metadata,
         });
 
         toast.loading('Preparing transaction...', { id: 'store' });
 
+        // Stylus contracts use snake_case function names
+        // Skip simulation as it often fails with Stylus contracts on Arbitrum
         const hash = await writeContractAsync({
           address: contractAddress,
           abi: DATALOOM_ABI,
-          functionName,
+          functionName: 'store_pixels',
           args: [encodedPixels, metadata],
-          // Gas estimation can be flaky with large calldata; provide a generous cap.
-          gas: 10_000_000n,
         } as any);
 
-        const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
         console.log('Transaction submitted:', hash);
-        toast.loading(`TX: ${shortHash} - Confirming...`, { id: 'store' });
+        toast.loading('Waiting for transaction confirmation...', { id: 'store' });
 
         return hash;
       } catch (error: any) {
