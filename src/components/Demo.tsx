@@ -73,32 +73,33 @@ const Demo = () => {
   const handleStoreOnChain = async () => {
     if (!isConnected || pixels.length === 0) return;
 
-    const pixelData = pixels.map(p => ({ x: p.x, y: p.y, color: p.color }));
-    
-    if (isContractDeployed) {
-      // Use actual contract - MetaMask will prompt user
-      const hash = await storePixels(pixelData, `Canvas created at ${new Date().toISOString()}`);
-      // Success toast is handled in useEffect when isConfirmed changes
-      // storePixels handles error toasts internally
-      if (hash) {
-        // Transaction submitted, waiting for confirmation
-        // The "Waiting for transaction confirmation..." toast is already shown by storePixels
+    try {
+      const pixelData = pixels.map((p) => ({ x: p.x, y: p.y, color: p.color }));
+
+      if (isContractDeployed) {
+        // Use actual contract - MetaMask will prompt user
+        await storePixels(
+          pixelData,
+          `Canvas created at ${new Date().toISOString()}`,
+        );
+        // Success toast is handled in useEffect when isConfirmed changes
+        // storePixels handles error toasts internally
+      } else {
+        // Demo mode - simulate transaction
+        toast.loading('Preparing transaction...', { id: 'store-tx' });
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        toast.loading('Compressing pixel data via DataLoom...', { id: 'store-tx' });
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        toast.loading('Waiting for wallet confirmation...', { id: 'store-tx' });
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        toast.success(`Demo: ${pixels.length} pixels would be stored on-chain!`, {
+          id: 'store-tx',
+          description: 'Deploy contract to enable real storage',
+        });
       }
-    } else {
-      // Demo mode - simulate transaction
-      toast.loading("Preparing transaction...", { id: "store-tx" });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.loading("Compressing pixel data via DataLoom...", { id: "store-tx" });
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.loading("Waiting for wallet confirmation...", { id: "store-tx" });
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      toast.success(
-        `Demo: ${pixels.length} pixels would be stored on-chain!`,
-        { 
-          id: "store-tx",
-          description: "Deploy contract to enable real storage",
-        }
-      );
+    } catch (err) {
+      console.error('Store on-chain failed:', err);
+      toast.error('Transaction failed. Please try again.', { id: 'store' });
     }
   };
 
