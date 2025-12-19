@@ -18,9 +18,8 @@ import { toast } from 'sonner';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
 type GetCanvasFnName = 'getCanvas' | 'get_canvas';
-type StorePixelsFnName = 'storePixels' | 'store_pixels';
 
-type CanvasData = {
+export type CanvasData = {
   id: bigint;
   pixels: PixelData[];
   metadata: string;
@@ -46,11 +45,7 @@ export function useDataLoom() {
   const getCanvasFnRef = useRef<GetCanvasFnName | null>(null);
 
   // Try snake_case first (Stylus contracts use snake_case)
-  const {
-    data: countSnake,
-    error: countSnakeError,
-    refetch: refetchSnake,
-  } = useReadContract({
+  const { data: countSnake, refetch: refetchSnake } = useReadContract({
     address: contractAddress,
     abi: DATALOOM_ABI,
     functionName: 'get_canvas_count',
@@ -58,11 +53,7 @@ export function useDataLoom() {
   } as any);
 
   // Try camelCase as fallback
-  const {
-    data: countCamel,
-    error: countCamelError,
-    refetch: refetchCamel,
-  } = useReadContract({
+  const { data: countCamel, refetch: refetchCamel } = useReadContract({
     address: contractAddress,
     abi: DATALOOM_ABI,
     functionName: 'getCanvasCount',
@@ -70,14 +61,6 @@ export function useDataLoom() {
   } as any);
 
   const canvasCount = (countSnake ?? countCamel) as bigint | undefined;
-
-  // Prefer the write function name that matches the read calls that actually work.
-  const storeFn: StorePixelsFnName =
-    countSnake !== undefined && !countSnakeError
-      ? 'store_pixels'
-      : countCamel !== undefined && !countCamelError
-        ? 'storePixels'
-        : 'store_pixels';
 
   const refetchCount = useCallback(() => {
     refetchSnake();
