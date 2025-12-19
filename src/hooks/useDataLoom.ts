@@ -123,8 +123,9 @@ export function useDataLoom() {
           args: [encodedPixels, metadata],
         } as any);
 
+        const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
         console.log('Transaction submitted:', hash);
-        toast.loading('Waiting for transaction confirmation...', { id: 'store' });
+        toast.loading(`TX: ${shortHash} - Confirming...`, { id: 'store' });
 
         return hash;
       } catch (error: any) {
