@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, ChevronDown, LogOut, AlertCircle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { arbitrum } from 'wagmi/chains';
+import { arbitrumSepolia } from 'wagmi/chains';
 
 const ConnectWallet = () => {
   const { address, isConnected, chain } = useAccount();
@@ -13,7 +13,7 @@ const ConnectWallet = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const isWrongNetwork = isConnected && chain?.id !== arbitrum.id;
+  const isWrongNetwork = isConnected && chain?.id !== arbitrumSepolia.id;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,7 +37,7 @@ const ConnectWallet = () => {
   };
 
   const handleSwitchToArbitrum = () => {
-    switchChain({ chainId: arbitrum.id });
+    switchChain({ chainId: arbitrumSepolia.id });
   };
 
   if (!isConnected) {
@@ -64,7 +64,7 @@ const ConnectWallet = () => {
         className="gap-2"
       >
         <AlertCircle size={16} />
-        Switch to Arbitrum
+        Switch to Arbitrum Sepolia
       </Button>
     );
   }
