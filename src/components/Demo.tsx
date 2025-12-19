@@ -80,14 +80,21 @@ const Demo = () => {
       const hash = await storePixels(pixelData, `Canvas created at ${new Date().toISOString()}`);
       if (hash) {
         const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
-        toast.success(`Stored ${pixels.length} pixels on-chain!`, {
-          id: 'store',
-          description: `TX: ${shortHash}`,
-          action: {
-            label: 'View',
-            onClick: () => window.open(`https://sepolia.arbiscan.io/tx/${hash}`, '_blank'),
-          },
-        });
+        const arbiscanUrl = `https://sepolia.arbiscan.io/tx/${hash}`;
+        toast.success(
+          <div className="flex flex-col gap-1">
+            <span>Stored {pixels.length} pixels on-chain!</span>
+            <a 
+              href={arbiscanUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline text-sm flex items-center gap-1"
+            >
+              TX: {shortHash} <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>,
+          { id: 'store' }
+        );
       }
     } else {
       // Demo mode - simulate transaction
