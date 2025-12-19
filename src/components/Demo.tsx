@@ -79,11 +79,12 @@ const Demo = () => {
       // Use actual contract
       const hash = await storePixels(pixelData, `Canvas created at ${new Date().toISOString()}`);
       if (hash) {
+        const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
         toast.success(`Stored ${pixels.length} pixels on-chain!`, {
           id: 'store',
-          description: 'Transaction confirmed',
+          description: `TX: ${shortHash}`,
           action: {
-            label: 'View TX',
+            label: 'View',
             onClick: () => window.open(`https://sepolia.arbiscan.io/tx/${hash}`, '_blank'),
           },
         });
