@@ -17,7 +17,6 @@ import { toast } from 'sonner';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
-type StoreFnName = 'storePixels' | 'store_pixels';
 type GetCanvasFnName = 'getCanvas' | 'get_canvas';
 
 export type CanvasData = {
@@ -42,32 +41,31 @@ export function useDataLoom() {
 
   const isContractDeployed = Boolean(contractAddress && contractAddress !== ZERO_ADDRESS);
 
-  // Cache the correct function names (camelCase vs snake_case) once we discover them.
-  const storeFnRef = useRef<StoreFnName | null>(null);
+  // Cache the correct function name for getCanvas
   const getCanvasFnRef = useRef<GetCanvasFnName | null>(null);
 
-  // Try camelCase first
-  const { data: countCamel, refetch: refetchCamel } = useReadContract({
-    address: contractAddress,
-    abi: DATALOOM_ABI,
-    functionName: 'getCanvasCount',
-    query: { enabled: isContractDeployed },
-  } as any);
-
-  // Try snake_case as fallback
+  // Try snake_case first (Stylus contracts use snake_case)
   const { data: countSnake, refetch: refetchSnake } = useReadContract({
     address: contractAddress,
     abi: DATALOOM_ABI,
     functionName: 'get_canvas_count',
-    query: { enabled: isContractDeployed && countCamel === undefined },
+    query: { enabled: isContractDeployed },
   } as any);
 
-  const canvasCount = (countCamel ?? countSnake) as bigint | undefined;
+  // Try camelCase as fallback
+  const { data: countCamel, refetch: refetchCamel } = useReadContract({
+    address: contractAddress,
+    abi: DATALOOM_ABI,
+    functionName: 'getCanvasCount',
+    query: { enabled: isContractDeployed && countSnake === undefined },
+  } as any);
+
+  const canvasCount = (countSnake ?? countCamel) as bigint | undefined;
 
   const refetchCount = useCallback(() => {
-    refetchCamel();
     refetchSnake();
-  }, [refetchCamel, refetchSnake]);
+    refetchCamel();
+  }, [refetchSnake, refetchCamel]);
 
   // Write contract
   const { writeContractAsync, data: txHash } = useWriteContract();
@@ -82,6 +80,7 @@ export function useDataLoom() {
     return (
       error?.shortMessage ||
       error?.cause?.shortMessage ||
+      error?.cause?.reason ||
       error?.details ||
       error?.message ||
       'Transaction failed'
@@ -106,42 +105,25 @@ export function useDataLoom() {
       try {
         const encodedPixels = encodePixels(pixels);
 
-        toast.loading('Compressing pixel data via DataLoom...', { id: 'store' });
+        console.log('Storing pixels:', {
+          contractAddress,
+          pixelCount: pixels.length,
+          encodedLength: encodedPixels.length,
+          metadata,
+        });
 
-        // Figure out whether the deployed contract uses camelCase or snake_case.
-        // We use simulation first so we don’t spam the wallet with failing TX prompts.
-        let functionName: StoreFnName = storeFnRef.current ?? 'storePixels';
-        if (!storeFnRef.current) {
-          const { simulateContract } = await import('wagmi/actions');
-          const { config } = await import('@/lib/web3-config');
+        toast.loading('Preparing transaction...', { id: 'store' });
 
-          const trySimulate = async (fn: StoreFnName) => {
-            await simulateContract(config, {
-              address: contractAddress,
-              abi: DATALOOM_ABI,
-              functionName: fn,
-              args: [encodedPixels, metadata],
-            } as any);
-          };
-
-          try {
-            await trySimulate('storePixels');
-            functionName = 'storePixels';
-          } catch {
-            await trySimulate('store_pixels');
-            functionName = 'store_pixels';
-          }
-
-          storeFnRef.current = functionName;
-        }
-
+        // Stylus contracts use snake_case function names
+        // Skip simulation as it often fails with Stylus contracts on Arbitrum
         const hash = await writeContractAsync({
           address: contractAddress,
           abi: DATALOOM_ABI,
-          functionName,
+          functionName: 'store_pixels',
           args: [encodedPixels, metadata],
         } as any);
 
+        console.log('Transaction submitted:', hash);
         toast.loading('Waiting for transaction confirmation...', { id: 'store' });
 
         return hash;
@@ -178,12 +160,13 @@ export function useDataLoom() {
         if (cached) {
           result = await readWith(cached);
         } else {
+          // Try snake_case first (Stylus)
           try {
-            result = await readWith('getCanvas');
-            getCanvasFnRef.current = 'getCanvas';
-          } catch {
             result = await readWith('get_canvas');
             getCanvasFnRef.current = 'get_canvas';
+          } catch {
+            result = await readWith('getCanvas');
+            getCanvasFnRef.current = 'getCanvas';
           }
         }
 
