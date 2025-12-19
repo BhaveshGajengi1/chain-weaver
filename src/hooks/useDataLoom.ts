@@ -1,6 +1,6 @@
 import {
   useAccount,
-  useReadContracts,
+  useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from 'wagmi';
@@ -12,19 +12,13 @@ import {
   decodePixels,
   type PixelData,
 } from '@/lib/contracts';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
 type StoreFnName = 'storePixels' | 'store_pixels';
 type GetCanvasFnName = 'getCanvas' | 'get_canvas';
-
-type ReadContractResult = {
-  result?: unknown;
-  status?: 'success' | 'failure';
-  error?: unknown;
-};
 
 export type CanvasData = {
   id: bigint;
@@ -52,29 +46,28 @@ export function useDataLoom() {
   const storeFnRef = useRef<StoreFnName | null>(null);
   const getCanvasFnRef = useRef<GetCanvasFnName | null>(null);
 
-  // Read total canvas count (try both ABI spellings)
-  const { data: countData, refetch: refetchCount } = useReadContracts({
-    contracts: isContractDeployed
-      ? ([
-          {
-            address: contractAddress,
-            abi: DATALOOM_ABI,
-            functionName: 'getCanvasCount',
-          },
-          {
-            address: contractAddress,
-            abi: DATALOOM_ABI,
-            functionName: 'get_canvas_count',
-          },
-        ] as const)
-      : ([] as const),
+  // Try camelCase first
+  const { data: countCamel, refetch: refetchCamel } = useReadContract({
+    address: contractAddress,
+    abi: DATALOOM_ABI,
+    functionName: 'getCanvasCount',
     query: { enabled: isContractDeployed },
-  });
+  } as any);
 
-  const canvasCount = (
-    (countData?.[0] as ReadContractResult | undefined)?.result ??
-    (countData?.[1] as ReadContractResult | undefined)?.result
-  ) as bigint | undefined;
+  // Try snake_case as fallback
+  const { data: countSnake, refetch: refetchSnake } = useReadContract({
+    address: contractAddress,
+    abi: DATALOOM_ABI,
+    functionName: 'get_canvas_count',
+    query: { enabled: isContractDeployed && countCamel === undefined },
+  } as any);
+
+  const canvasCount = (countCamel ?? countSnake) as bigint | undefined;
+
+  const refetchCount = useCallback(() => {
+    refetchCamel();
+    refetchSnake();
+  }, [refetchCamel, refetchSnake]);
 
   // Write contract
   const { writeContractAsync, data: txHash } = useWriteContract();
