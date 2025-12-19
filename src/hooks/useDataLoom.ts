@@ -70,21 +70,66 @@ export function useDataLoom() {
   // Write contract
   const { writeContractAsync, data: txHash } = useWriteContract();
 
-  // Wait for transaction
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({
-      hash: txHash,
-    });
+  // Wait for transaction (only when we actually have a hash)
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    isError: isTxError,
+    error: txError,
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+    query: { enabled: Boolean(txHash) },
+  });
+
+  // Never surface low-level RPC noise to users
+  useEffect(() => {
+    if (!isTxError || !txError) return;
+
+    toast.error('Transaction failed to confirm. Please try again.', { id: 'store' });
+  }, [isTxError, txError]);
 
   const pickNiceError = (error: any): string => {
+    const haystack = [
+      error?.shortMessage,
+      error?.message,
+      error?.details,
+      error?.cause?.shortMessage,
+      error?.cause?.message,
+      error?.cause?.details,
+      error?.cause?.cause?.shortMessage,
+      error?.cause?.cause?.message,
+      error?.cause?.cause?.details,
+    ]
+      .filter(Boolean)
+      .join(' | ')
+      .toLowerCase();
+
+    // Never show raw RPC/internal errors
+    if (
+      haystack.includes('json-rpc') ||
+      haystack.includes('json rpc') ||
+      haystack.includes('rpc error') ||
+      haystack.includes('internal error')
+    ) {
+      return 'Transaction failed. Please try again.';
+    }
+
     // User rejected the transaction
-    if (error?.code === 4001 || error?.cause?.code === 4001 || 
-        error?.message?.includes('User rejected') || error?.message?.includes('user rejected')) {
+    if (
+      error?.code === 4001 ||
+      error?.cause?.code === 4001 ||
+      haystack.includes('user rejected')
+    ) {
       return 'Transaction cancelled';
     }
-    
+
+    // Wrong / unsupported network
+    if (haystack.includes('chain') && (haystack.includes('not configured') || haystack.includes('unsupported'))) {
+      return 'Wrong network. Switch to Arbitrum Sepolia.';
+    }
+
     // Insufficient funds
-    if (error?.message?.includes('insufficient funds') || error?.cause?.message?.includes('insufficient funds')) {
+    if (haystack.includes('insufficient funds')) {
       return 'Insufficient ETH for gas fees';
     }
 
@@ -94,20 +139,13 @@ export function useDataLoom() {
     }
 
     // Generic revert
-    if (error?.message?.includes('revert') || error?.cause?.message?.includes('revert')) {
+    if (haystack.includes('revert')) {
       return 'Transaction reverted by contract';
     }
 
-    // Don't expose raw JSON-RPC errors
-    if (error?.message?.includes('JSON-RPC') || error?.message?.includes('Internal')) {
-      return 'Transaction failed. Please try again.';
-    }
-
-    // Prefer short messages
+    // Prefer short messages (but keep them clean)
     const msg = error?.shortMessage || error?.cause?.shortMessage;
-    if (msg && !msg.includes('JSON-RPC')) {
-      return msg;
-    }
+    if (msg) return msg;
 
     return 'Transaction failed. Please try again.';
   };
@@ -122,6 +160,11 @@ export function useDataLoom() {
 
       if (!address) {
         toast.error('Please connect your wallet');
+        return null;
+      }
+
+      if (chain?.id !== arbitrumSepolia.id) {
+        toast.error('Wrong network. Switch to Arbitrum Sepolia.');
         return null;
       }
 
@@ -160,7 +203,7 @@ export function useDataLoom() {
         setIsStoring(false);
       }
     },
-    [address, contractAddress, isContractDeployed, writeContractAsync],
+    [address, chain?.id, contractAddress, isContractDeployed, writeContractAsync],
   );
 
   // Fetch canvas by ID
