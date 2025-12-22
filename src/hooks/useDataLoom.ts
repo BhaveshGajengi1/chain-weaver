@@ -183,13 +183,18 @@ export function useDataLoom() {
         toast.loading('Preparing transaction...', { id: 'store' });
 
         // Stylus contracts use snake_case function names
-        // Skip simulation as it often fails with Stylus contracts on Arbitrum
-        const hash = await writeContractAsync({
-          address: contractAddress,
-          abi: DATALOOM_ABI,
-          functionName: 'store_pixels',
-          args: [encodedPixels, metadata],
-        } as any);
+        let hash: `0x${string}`;
+        try {
+          hash = await writeContractAsync({
+            address: contractAddress,
+            abi: DATALOOM_ABI,
+            functionName: 'store_pixels',
+            args: [encodedPixels, metadata],
+          } as any);
+        } catch (writeError: any) {
+          // Catch and transform any write/simulation errors immediately
+          throw new Error(pickNiceError(writeError));
+        }
 
         console.log('Transaction submitted:', hash);
         toast.loading('Waiting for transaction confirmation...', { id: 'store' });
@@ -197,7 +202,9 @@ export function useDataLoom() {
         return hash;
       } catch (error: any) {
         console.error('Error storing pixels:', error);
-        toast.error(pickNiceError(error), { id: 'store' });
+        // Error is already transformed, show it directly
+        const msg = error?.message || 'Transaction failed. Please try again.';
+        toast.error(msg, { id: 'store' });
         return null;
       } finally {
         setIsStoring(false);
