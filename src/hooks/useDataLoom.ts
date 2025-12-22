@@ -17,6 +17,15 @@ import { toast } from 'sonner';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
+const getStoreGasLimit = (pixelCount: number) => {
+  // Gas estimation can fail on some RPCs for Stylus contracts; providing a safe
+  // gas limit avoids `eth_estimateGas` JSON-RPC errors.
+  const base = 900_000;
+  const perPixel = 18_000;
+  const max = 6_000_000;
+  return BigInt(Math.min(max, base + pixelCount * perPixel));
+};
+
 type GetCanvasFnName = 'getCanvas' | 'get_canvas';
 
 export type CanvasData = {
@@ -81,13 +90,6 @@ export function useDataLoom() {
     query: { enabled: Boolean(txHash) },
   });
 
-  // Never surface low-level RPC noise to users
-  useEffect(() => {
-    if (!isTxError || !txError) return;
-
-    toast.error('Transaction failed to confirm. Please try again.', { id: 'store' });
-  }, [isTxError, txError]);
-
   const pickNiceError = (error: any): string => {
     const haystack = [
       error?.shortMessage,
@@ -103,6 +105,15 @@ export function useDataLoom() {
       .filter(Boolean)
       .join(' | ')
       .toLowerCase();
+
+    // Gas estimation failures (common source of JSON-RPC noise)
+    if (
+      haystack.includes('estimate gas') ||
+      haystack.includes('eth_estimategas') ||
+      haystack.includes('gas required exceeds allowance')
+    ) {
+      return 'Gas estimation failed. Please try again (and ensure you have test ETH for gas).';
+    }
 
     // Never show raw RPC/internal errors
     if (
@@ -124,7 +135,10 @@ export function useDataLoom() {
     }
 
     // Wrong / unsupported network
-    if (haystack.includes('chain') && (haystack.includes('not configured') || haystack.includes('unsupported'))) {
+    if (
+      haystack.includes('chain') &&
+      (haystack.includes('not configured') || haystack.includes('unsupported'))
+    ) {
       return 'Wrong network. Switch to Arbitrum Sepolia.';
     }
 
@@ -150,6 +164,13 @@ export function useDataLoom() {
     return 'Transaction failed. Please try again.';
   };
 
+  // Never surface low-level RPC noise to users
+  useEffect(() => {
+    if (!isTxError || !txError) return;
+
+    toast.error(pickNiceError(txError), { id: 'store' });
+  }, [isTxError, txError]);
+
   // Store pixels on-chain
   const storePixels = useCallback(
     async (pixels: PixelData[], metadata: string = '') => {
@@ -172,28 +193,62 @@ export function useDataLoom() {
 
       try {
         const encodedPixels = encodePixels(pixels);
+        const gasLimit = getStoreGasLimit(pixels.length);
 
         console.log('Storing pixels:', {
           contractAddress,
           pixelCount: pixels.length,
           encodedLength: encodedPixels.length,
+          gasLimit: gasLimit.toString(),
           metadata,
         });
 
         toast.loading('Preparing transaction...', { id: 'store' });
 
-        // Stylus contracts use snake_case function names
+        // Stylus contracts usually expose snake_case names, but fall back to camelCase.
+        const txBase = {
+          address: contractAddress,
+          abi: DATALOOM_ABI,
+          args: [encodedPixels, metadata],
+          gas: gasLimit,
+        } as any;
+
         let hash: `0x${string}`;
         try {
           hash = await writeContractAsync({
-            address: contractAddress,
-            abi: DATALOOM_ABI,
+            ...txBase,
             functionName: 'store_pixels',
-            args: [encodedPixels, metadata],
-          } as any);
+          });
         } catch (writeError: any) {
-          // Catch and transform any write/simulation errors immediately
-          throw new Error(pickNiceError(writeError));
+          const errText = String(
+            [
+              writeError?.shortMessage,
+              writeError?.message,
+              writeError?.details,
+              writeError?.cause?.shortMessage,
+              writeError?.cause?.message,
+              writeError?.cause?.details,
+            ]
+              .filter(Boolean)
+              .join(' | '),
+          ).toLowerCase();
+
+          if (
+            errText.includes('method not found') ||
+            errText.includes('function selector') ||
+            errText.includes('unknown function')
+          ) {
+            try {
+              hash = await writeContractAsync({
+                ...txBase,
+                functionName: 'storePixels',
+              });
+            } catch (fallbackError: any) {
+              throw new Error(pickNiceError(fallbackError));
+            }
+          } else {
+            throw new Error(pickNiceError(writeError));
+          }
         }
 
         console.log('Transaction submitted:', hash);
