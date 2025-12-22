@@ -1,6 +1,5 @@
 import {
   useAccount,
-  useBalance,
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
@@ -40,12 +39,6 @@ export type CanvasData = {
 export function useDataLoom() {
   const { address, chain } = useAccount();
   const [isStoring, setIsStoring] = useState(false);
-
-  const { data: balance } = useBalance({
-    address,
-    chainId: arbitrumSepolia.id,
-    query: { enabled: Boolean(address) },
-  });
 
   // Resolve contract address for current chain (fallback to Arbitrum Sepolia)
   const contractAddress =
@@ -211,16 +204,30 @@ export function useDataLoom() {
         return null;
       }
 
-      if (!balance?.value || balance.value === 0n) {
-        toast.error('No Arbitrum Sepolia ETH for gas fees.', {
-          id: 'store',
-          description: 'Grab a little test ETH from a faucet, then try again.',
-          action: {
-            label: 'Get test ETH',
-            onClick: () => window.open('https://faucets.chain.link/arbitrum-sepolia', '_blank'),
-          },
+      // NOTE: `useBalance()` was causing a runtime crash in some environments (null getSnapshot).
+      // We do a just-in-time balance check instead.
+      try {
+        const { getBalance } = await import('wagmi/actions');
+        const { config } = await import('@/lib/web3-config');
+        const bal = await getBalance(config, {
+          address,
+          chainId: arbitrumSepolia.id,
         });
-        return null;
+
+        if (!bal?.value || bal.value === 0n) {
+          toast.error('No Arbitrum Sepolia ETH for gas fees.', {
+            id: 'store',
+            description: 'Grab a little test ETH from a faucet, then try again.',
+            action: {
+              label: 'Get test ETH',
+              onClick: () => window.open('https://faucets.chain.link/arbitrum-sepolia', '_blank'),
+            },
+          });
+          return null;
+        }
+      } catch (balanceError) {
+        // If balance check fails due to RPC/provider hiccups, don't block the transaction.
+        console.warn('Balance check failed, continuing:', balanceError);
       }
 
       setIsStoring(true);
@@ -299,7 +306,7 @@ export function useDataLoom() {
         setIsStoring(false);
       }
     },
-    [address, chain?.id, contractAddress, isContractDeployed, writeContractAsync, balance?.value],
+    [address, chain?.id, contractAddress, isContractDeployed, writeContractAsync],
   );
 
   // Fetch canvas by ID
