@@ -168,6 +168,11 @@ export function useDataLoom() {
       return 'Transaction reverted by contract.';
     }
 
+    // Internal JSON-RPC error (generic RPC failure)
+    if (haystackLower.includes('internal json-rpc error') || haystackLower.includes('internal error')) {
+      return 'RPC node error. Please try again in a moment.';
+    }
+
     // Prefer short messages (but keep them clean)
     const short = clean(String(error?.shortMessage || error?.cause?.shortMessage || ''));
     if (short) return truncate(short);
