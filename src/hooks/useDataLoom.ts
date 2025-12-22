@@ -304,26 +304,27 @@ export function useDataLoom() {
           t.includes('internal json-rpc error');
 
         // Preflight with eth_call to pick the correct selector and surface revert reasons.
-        let preferredFn: 'storePixels' | 'store_pixels' = 'storePixels';
+        // Stylus exports snake_case function names, so try `store_pixels` first.
+        let preferredFn: 'storePixels' | 'store_pixels' = 'store_pixels';
         try {
           await simulateContract(config, {
             ...txBase,
-            functionName: 'storePixels',
+            functionName: 'store_pixels',
             account: address,
             chainId: arbitrumSepolia.id,
           } as any);
-        } catch (simError: any) {
-          const t = errorText(simError);
-          if (shouldTryAltSelector(t)) {
+        } catch (simErrorSnake: any) {
+          try {
             await simulateContract(config, {
               ...txBase,
-              functionName: 'store_pixels',
+              functionName: 'storePixels',
               account: address,
               chainId: arbitrumSepolia.id,
             } as any);
-            preferredFn = 'store_pixels';
-          } else {
-            throw new Error(pickNiceError(simError));
+            preferredFn = 'storePixels';
+          } catch (simErrorCamel: any) {
+            // If both selectors fail, surface the most useful error
+            throw new Error(pickNiceError(simErrorCamel ?? simErrorSnake));
           }
         }
 
