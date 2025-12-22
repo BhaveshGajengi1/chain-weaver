@@ -1,5 +1,6 @@
 import {
   useAccount,
+  useBalance,
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
@@ -39,6 +40,12 @@ export type CanvasData = {
 export function useDataLoom() {
   const { address, chain } = useAccount();
   const [isStoring, setIsStoring] = useState(false);
+
+  const { data: balance } = useBalance({
+    address,
+    chainId: arbitrumSepolia.id,
+    query: { enabled: Boolean(address) },
+  });
 
   // Resolve contract address for current chain (fallback to Arbitrum Sepolia)
   const contractAddress =
@@ -91,75 +98,90 @@ export function useDataLoom() {
   });
 
   const pickNiceError = (error: any): string => {
-    const haystack = [
+    const messages = [
       error?.shortMessage,
       error?.message,
       error?.details,
+      ...(Array.isArray(error?.metaMessages) ? error.metaMessages : []),
       error?.cause?.shortMessage,
       error?.cause?.message,
       error?.cause?.details,
+      ...(Array.isArray(error?.cause?.metaMessages) ? error.cause.metaMessages : []),
       error?.cause?.cause?.shortMessage,
       error?.cause?.cause?.message,
       error?.cause?.cause?.details,
     ]
       .filter(Boolean)
-      .join(' | ')
-      .toLowerCase();
+      .map((m) => String(m));
 
-    // Gas estimation failures (common source of JSON-RPC noise)
-    if (
-      haystack.includes('estimate gas') ||
-      haystack.includes('eth_estimategas') ||
-      haystack.includes('gas required exceeds allowance')
-    ) {
-      return 'Gas estimation failed. Please try again (and ensure you have test ETH for gas).';
-    }
+    const haystack = messages.join(' | ');
+    const haystackLower = haystack.toLowerCase();
 
-    // Never show raw RPC/internal errors
-    if (
-      haystack.includes('json-rpc') ||
-      haystack.includes('json rpc') ||
-      haystack.includes('rpc error') ||
-      haystack.includes('internal error')
-    ) {
-      return 'Transaction failed. Please try again.';
-    }
+    const clean = (s: string) =>
+      s
+        .replace(/^.*json[- ]rpc.*?:\s*/i, '')
+        .replace(/^execution reverted:\s*/i, '')
+        .trim();
+
+    const truncate = (s: string, n = 180) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
     // User rejected the transaction
     if (
       error?.code === 4001 ||
       error?.cause?.code === 4001 ||
-      haystack.includes('user rejected')
+      haystackLower.includes('user rejected')
     ) {
       return 'Transaction cancelled';
     }
 
     // Wrong / unsupported network
     if (
-      haystack.includes('chain') &&
-      (haystack.includes('not configured') || haystack.includes('unsupported'))
+      haystackLower.includes('chain') &&
+      (haystackLower.includes('not configured') ||
+        haystackLower.includes('unsupported') ||
+        haystackLower.includes('wrong network'))
     ) {
       return 'Wrong network. Switch to Arbitrum Sepolia.';
     }
 
     // Insufficient funds
-    if (haystack.includes('insufficient funds')) {
-      return 'Insufficient ETH for gas fees';
+    if (haystackLower.includes('insufficient funds')) {
+      return 'Insufficient ETH for gas fees (Arbitrum Sepolia).';
+    }
+
+    // Nonce / replacement issues
+    if (haystackLower.includes('nonce too low')) {
+      return 'Nonce too low. Try again in a moment.';
+    }
+    if (haystackLower.includes('replacement transaction underpriced')) {
+      return 'A previous transaction is pending. Speed up or cancel it in your wallet.';
+    }
+
+    // Gas estimation failures
+    if (
+      haystackLower.includes('estimate gas') ||
+      haystackLower.includes('eth_estimategas') ||
+      haystackLower.includes('gas required exceeds allowance')
+    ) {
+      return 'Gas estimation failed. Please try again (and ensure you have test ETH for gas).';
     }
 
     // Contract revert - extract reason if possible
-    if (error?.cause?.reason) {
-      return `Contract error: ${error.cause.reason}`;
-    }
+    const reason = error?.cause?.reason || error?.reason;
+    if (reason) return `Contract error: ${truncate(String(reason))}`;
 
     // Generic revert
-    if (haystack.includes('revert')) {
-      return 'Transaction reverted by contract';
+    if (haystackLower.includes('execution reverted') || haystackLower.includes('revert')) {
+      return 'Transaction reverted by contract.';
     }
 
     // Prefer short messages (but keep them clean)
-    const msg = error?.shortMessage || error?.cause?.shortMessage;
-    if (msg) return msg;
+    const short = clean(String(error?.shortMessage || error?.cause?.shortMessage || ''));
+    if (short) return truncate(short);
+
+    // Fallback to any captured message
+    const fallback = clean(messages[0] ?? '');
+    if (fallback) return truncate(fallback);
 
     return 'Transaction failed. Please try again.';
   };
@@ -186,6 +208,18 @@ export function useDataLoom() {
 
       if (chain?.id !== arbitrumSepolia.id) {
         toast.error('Wrong network. Switch to Arbitrum Sepolia.');
+        return null;
+      }
+
+      if (!balance?.value || balance.value === 0n) {
+        toast.error('No Arbitrum Sepolia ETH for gas fees.', {
+          id: 'store',
+          description: 'Grab a little test ETH from a faucet, then try again.',
+          action: {
+            label: 'Get test ETH',
+            onClick: () => window.open('https://faucets.chain.link/arbitrum-sepolia', '_blank'),
+          },
+        });
         return null;
       }
 
@@ -265,7 +299,7 @@ export function useDataLoom() {
         setIsStoring(false);
       }
     },
-    [address, chain?.id, contractAddress, isContractDeployed, writeContractAsync],
+    [address, chain?.id, contractAddress, isContractDeployed, writeContractAsync, balance?.value],
   );
 
   // Fetch canvas by ID
