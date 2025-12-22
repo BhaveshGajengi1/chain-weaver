@@ -20,9 +20,9 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 const getStoreGasLimit = (pixelCount: number) => {
   // Gas estimation can fail on some RPCs for Stylus contracts; providing a safe
   // gas limit avoids `eth_estimateGas` JSON-RPC errors.
-  const base = 900_000;
-  const perPixel = 18_000;
-  const max = 6_000_000;
+  const base = 1_200_000;
+  const perPixel = 22_000;
+  const max = 12_000_000;
   return BigInt(Math.min(max, base + pixelCount * perPixel));
 };
 
