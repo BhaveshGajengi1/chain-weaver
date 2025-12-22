@@ -161,7 +161,13 @@ export function useDataLoom() {
 
     // Contract revert - extract reason if possible
     const reason = error?.cause?.reason || error?.reason;
-    if (reason) return `Contract error: ${truncate(String(reason))}`;
+    if (reason) {
+      const reasonLower = String(reason).toLowerCase();
+      if (reasonLower.includes('internal json-rpc error') || reasonLower.includes('internal error')) {
+        return 'RPC node error. Please try again in a moment.';
+      }
+      return `Contract error: ${truncate(String(reason))}`;
+    }
 
     // Generic revert
     if (haystackLower.includes('execution reverted') || haystackLower.includes('revert')) {
@@ -252,11 +258,13 @@ export function useDataLoom() {
         toast.loading('Preparing transaction...', { id: 'store' });
 
         // Stylus contracts usually expose snake_case names, but fall back to camelCase.
+        // Use numeric gasLimit (and gas for compatibility) to avoid sending a BigInt directly
         const txBase = {
           address: contractAddress,
           abi: DATALOOM_ABI,
           args: [encodedPixels, metadata],
-          gas: gasLimit,
+          gasLimit: Number(gasLimit),
+          gas: Number(gasLimit),
         } as any;
 
         let hash: `0x${string}`;
