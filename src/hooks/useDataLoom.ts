@@ -95,14 +95,17 @@ export function useDataLoom() {
       error?.shortMessage,
       error?.message,
       error?.details,
+      error?.reason,
       ...(Array.isArray(error?.metaMessages) ? error.metaMessages : []),
       error?.cause?.shortMessage,
       error?.cause?.message,
       error?.cause?.details,
+      error?.cause?.reason,
       ...(Array.isArray(error?.cause?.metaMessages) ? error.cause.metaMessages : []),
       error?.cause?.cause?.shortMessage,
       error?.cause?.cause?.message,
       error?.cause?.cause?.details,
+      error?.cause?.cause?.reason,
     ]
       .filter(Boolean)
       .map((m) => String(m));
@@ -253,7 +256,22 @@ export function useDataLoom() {
 
         toast.loading('Preparing transaction...', { id: 'store' });
 
-        // Some deployments expose camelCase, others snake_case; try both.
+        const { getBytecode, simulateContract } = await import('wagmi/actions');
+        const { config } = await import('@/lib/web3-config');
+
+        // Verify contract exists at address (avoids opaque "Internal JSON-RPC error" from some wallets/RPCs)
+        const bytecode = await getBytecode(
+          config,
+          {
+            address: contractAddress,
+            chainId: arbitrumSepolia.id,
+          } as any,
+        );
+        if (!bytecode || bytecode === '0x') {
+          throw new Error(`Contract not found at ${contractAddress}`);
+        }
+
+        // Some deployments expose camelCase, others snake_case.
         const txBase = {
           address: contractAddress,
           abi: DATALOOM_ABI,
@@ -261,44 +279,73 @@ export function useDataLoom() {
           gas: gasLimit,
         } as any;
 
-        let hash: `0x${string}`;
-        try {
-          hash = await writeContractAsync({
-            ...txBase,
-            functionName: 'storePixels',
-          });
-        } catch (writeError: any) {
-          const errText = String(
+        const errorText = (e: any) =>
+          String(
             [
-              writeError?.shortMessage,
-              writeError?.message,
-              writeError?.details,
-              writeError?.cause?.shortMessage,
-              writeError?.cause?.message,
-              writeError?.cause?.details,
+              e?.shortMessage,
+              e?.message,
+              e?.details,
+              e?.reason,
+              ...(Array.isArray(e?.metaMessages) ? e.metaMessages : []),
+              e?.cause?.shortMessage,
+              e?.cause?.message,
+              e?.cause?.details,
+              e?.cause?.reason,
+              ...(Array.isArray(e?.cause?.metaMessages) ? e.cause.metaMessages : []),
             ]
               .filter(Boolean)
               .join(' | '),
           ).toLowerCase();
 
+        const shouldTryAltSelector = (t: string) =>
+          t.includes('method not found') ||
+          t.includes('function selector') ||
+          t.includes('unknown function') ||
+          t.includes('internal json-rpc error');
+
+        // Preflight with eth_call to pick the correct selector and surface revert reasons.
+        let preferredFn: 'storePixels' | 'store_pixels' = 'storePixels';
+        try {
+          await simulateContract(config, {
+            ...txBase,
+            functionName: 'storePixels',
+            account: address,
+            chainId: arbitrumSepolia.id,
+          } as any);
+        } catch (simError: any) {
+          const t = errorText(simError);
+          if (shouldTryAltSelector(t)) {
+            await simulateContract(config, {
+              ...txBase,
+              functionName: 'store_pixels',
+              account: address,
+              chainId: arbitrumSepolia.id,
+            } as any);
+            preferredFn = 'store_pixels';
+          } else {
+            throw new Error(pickNiceError(simError));
+          }
+        }
+
+        let hash: `0x${string}`;
+        try {
+          hash = await writeContractAsync({
+            ...txBase,
+            functionName: preferredFn,
+          });
+        } catch (writeError: any) {
+          const t = errorText(writeError);
           const isUserRejected =
             writeError?.code === 4001 ||
             writeError?.cause?.code === 4001 ||
-            errText.includes('user rejected');
+            t.includes('user rejected');
 
-          // Many wallets/node providers surface "wrong selector" failures as a generic "Internal JSON-RPC error".
-          const shouldTrySnakeCase =
-            !isUserRejected &&
-            (errText.includes('method not found') ||
-              errText.includes('function selector') ||
-              errText.includes('unknown function') ||
-              errText.includes('internal json-rpc error'));
-
-          if (shouldTrySnakeCase) {
+          if (!isUserRejected && shouldTryAltSelector(t)) {
+            const alt = preferredFn === 'storePixels' ? 'store_pixels' : 'storePixels';
             try {
               hash = await writeContractAsync({
                 ...txBase,
-                functionName: 'store_pixels',
+                functionName: alt,
               });
             } catch (fallbackError: any) {
               throw new Error(pickNiceError(fallbackError));
