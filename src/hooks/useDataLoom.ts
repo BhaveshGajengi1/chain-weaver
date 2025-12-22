@@ -159,18 +159,20 @@ export function useDataLoom() {
       return 'Gas estimation failed. Please try again (and ensure you have test ETH for gas).';
     }
 
-    // Contract revert - extract reason if possible
+    // Internal JSON-RPC error (generic RPC failure) — some wallets wrap real failures into this.
+    if (haystackLower.includes('internal json-rpc error') || haystackLower.includes('internal error')) {
+      return 'RPC node error. Please try again in a moment.';
+    }
+
+    // Contract revert - extract reason if possible (but ignore generic RPC placeholders)
     const reason = error?.cause?.reason || error?.reason;
-    if (reason) return `Contract error: ${truncate(String(reason))}`;
+    if (reason && !String(reason).toLowerCase().includes('internal json-rpc error')) {
+      return `Contract error: ${truncate(String(reason))}`;
+    }
 
     // Generic revert
     if (haystackLower.includes('execution reverted') || haystackLower.includes('revert')) {
       return 'Transaction reverted by contract.';
-    }
-
-    // Internal JSON-RPC error (generic RPC failure)
-    if (haystackLower.includes('internal json-rpc error') || haystackLower.includes('internal error')) {
-      return 'RPC node error. Please try again in a moment.';
     }
 
     // Prefer short messages (but keep them clean)
@@ -251,7 +253,7 @@ export function useDataLoom() {
 
         toast.loading('Preparing transaction...', { id: 'store' });
 
-        // Stylus contracts usually expose snake_case names, but fall back to camelCase.
+        // Some deployments expose camelCase, others snake_case; try both.
         const txBase = {
           address: contractAddress,
           abi: DATALOOM_ABI,
@@ -263,7 +265,7 @@ export function useDataLoom() {
         try {
           hash = await writeContractAsync({
             ...txBase,
-            functionName: 'store_pixels',
+            functionName: 'storePixels',
           });
         } catch (writeError: any) {
           const errText = String(
@@ -279,15 +281,24 @@ export function useDataLoom() {
               .join(' | '),
           ).toLowerCase();
 
-          if (
-            errText.includes('method not found') ||
-            errText.includes('function selector') ||
-            errText.includes('unknown function')
-          ) {
+          const isUserRejected =
+            writeError?.code === 4001 ||
+            writeError?.cause?.code === 4001 ||
+            errText.includes('user rejected');
+
+          // Many wallets/node providers surface "wrong selector" failures as a generic "Internal JSON-RPC error".
+          const shouldTrySnakeCase =
+            !isUserRejected &&
+            (errText.includes('method not found') ||
+              errText.includes('function selector') ||
+              errText.includes('unknown function') ||
+              errText.includes('internal json-rpc error'));
+
+          if (shouldTrySnakeCase) {
             try {
               hash = await writeContractAsync({
                 ...txBase,
-                functionName: 'storePixels',
+                functionName: 'store_pixels',
               });
             } catch (fallbackError: any) {
               throw new Error(pickNiceError(fallbackError));
