@@ -95,17 +95,14 @@ export function useDataLoom() {
       error?.shortMessage,
       error?.message,
       error?.details,
-      error?.reason,
       ...(Array.isArray(error?.metaMessages) ? error.metaMessages : []),
       error?.cause?.shortMessage,
       error?.cause?.message,
       error?.cause?.details,
-      error?.cause?.reason,
       ...(Array.isArray(error?.cause?.metaMessages) ? error.cause.metaMessages : []),
       error?.cause?.cause?.shortMessage,
       error?.cause?.cause?.message,
       error?.cause?.cause?.details,
-      error?.cause?.cause?.reason,
     ]
       .filter(Boolean)
       .map((m) => String(m));
@@ -162,20 +159,18 @@ export function useDataLoom() {
       return 'Gas estimation failed. Please try again (and ensure you have test ETH for gas).';
     }
 
-    // Internal JSON-RPC error (generic RPC failure) — some wallets wrap real failures into this.
-    if (haystackLower.includes('internal json-rpc error') || haystackLower.includes('internal error')) {
-      return 'RPC node error. Please try again in a moment.';
-    }
-
-    // Contract revert - extract reason if possible (but ignore generic RPC placeholders)
+    // Contract revert - extract reason if possible
     const reason = error?.cause?.reason || error?.reason;
-    if (reason && !String(reason).toLowerCase().includes('internal json-rpc error')) {
-      return `Contract error: ${truncate(String(reason))}`;
-    }
+    if (reason) return `Contract error: ${truncate(String(reason))}`;
 
     // Generic revert
     if (haystackLower.includes('execution reverted') || haystackLower.includes('revert')) {
       return 'Transaction reverted by contract.';
+    }
+
+    // Internal JSON-RPC error (generic RPC failure)
+    if (haystackLower.includes('internal json-rpc error') || haystackLower.includes('internal error')) {
+      return 'RPC node error. Please try again in a moment.';
     }
 
     // Prefer short messages (but keep them clean)
@@ -256,22 +251,7 @@ export function useDataLoom() {
 
         toast.loading('Preparing transaction...', { id: 'store' });
 
-        const { getBytecode, simulateContract } = await import('wagmi/actions');
-        const { config } = await import('@/lib/web3-config');
-
-        // Verify contract exists at address (avoids opaque "Internal JSON-RPC error" from some wallets/RPCs)
-        const bytecode = await getBytecode(
-          config,
-          {
-            address: contractAddress,
-            chainId: arbitrumSepolia.id,
-          } as any,
-        );
-        if (!bytecode || bytecode === '0x') {
-          throw new Error(`Contract not found at ${contractAddress}`);
-        }
-
-        // Some deployments expose camelCase, others snake_case.
+        // Stylus contracts usually expose snake_case names, but fall back to camelCase.
         const txBase = {
           address: contractAddress,
           abi: DATALOOM_ABI,
@@ -279,74 +259,35 @@ export function useDataLoom() {
           gas: gasLimit,
         } as any;
 
-        const errorText = (e: any) =>
-          String(
+        let hash: `0x${string}`;
+        try {
+          hash = await writeContractAsync({
+            ...txBase,
+            functionName: 'store_pixels',
+          });
+        } catch (writeError: any) {
+          const errText = String(
             [
-              e?.shortMessage,
-              e?.message,
-              e?.details,
-              e?.reason,
-              ...(Array.isArray(e?.metaMessages) ? e.metaMessages : []),
-              e?.cause?.shortMessage,
-              e?.cause?.message,
-              e?.cause?.details,
-              e?.cause?.reason,
-              ...(Array.isArray(e?.cause?.metaMessages) ? e.cause.metaMessages : []),
+              writeError?.shortMessage,
+              writeError?.message,
+              writeError?.details,
+              writeError?.cause?.shortMessage,
+              writeError?.cause?.message,
+              writeError?.cause?.details,
             ]
               .filter(Boolean)
               .join(' | '),
           ).toLowerCase();
 
-        const shouldTryAltSelector = (t: string) =>
-          t.includes('method not found') ||
-          t.includes('function selector') ||
-          t.includes('unknown function') ||
-          t.includes('internal json-rpc error');
-
-        // Preflight with eth_call to pick the correct selector and surface revert reasons.
-        // Stylus exports snake_case function names, so try `store_pixels` first.
-        let preferredFn: 'storePixels' | 'store_pixels' = 'store_pixels';
-        try {
-          await simulateContract(config, {
-            ...txBase,
-            functionName: 'store_pixels',
-            account: address,
-            chainId: arbitrumSepolia.id,
-          } as any);
-        } catch (simErrorSnake: any) {
-          try {
-            await simulateContract(config, {
-              ...txBase,
-              functionName: 'storePixels',
-              account: address,
-              chainId: arbitrumSepolia.id,
-            } as any);
-            preferredFn = 'storePixels';
-          } catch (simErrorCamel: any) {
-            // If both selectors fail, surface the most useful error
-            throw new Error(pickNiceError(simErrorCamel ?? simErrorSnake));
-          }
-        }
-
-        let hash: `0x${string}`;
-        try {
-          hash = await writeContractAsync({
-            ...txBase,
-            functionName: preferredFn,
-          });
-        } catch (writeError: any) {
-          const t = errorText(writeError);
-          const isUserRejected =
-            writeError?.code === 4001 ||
-            writeError?.cause?.code === 4001 ||
-            t.includes('user rejected');
-
-          if (!isUserRejected && shouldTryAltSelector(t)) {
-            const alt = preferredFn === 'storePixels' ? 'store_pixels' : 'storePixels';
+          if (
+            errText.includes('method not found') ||
+            errText.includes('function selector') ||
+            errText.includes('unknown function')
+          ) {
             try {
               hash = await writeContractAsync({
                 ...txBase,
-                functionName: alt,
+                functionName: 'storePixels',
               });
             } catch (fallbackError: any) {
               throw new Error(pickNiceError(fallbackError));
