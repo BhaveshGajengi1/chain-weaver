@@ -258,13 +258,12 @@ export function useDataLoom() {
         toast.loading('Preparing transaction...', { id: 'store' });
 
         // Stylus contracts usually expose snake_case names, but fall back to camelCase.
-        // Use numeric gasLimit (and gas for compatibility) to avoid sending a BigInt directly
+        // Provide a safe gas limit explicitly (as `gas`) to avoid flaky estimateGas on some RPCs.
         const txBase = {
           address: contractAddress,
           abi: DATALOOM_ABI,
           args: [encodedPixels, metadata],
-          gasLimit: Number(gasLimit),
-          gas: Number(gasLimit),
+          gas: gasLimit,
         } as any;
 
         let hash: `0x${string}`;
