@@ -1,0 +1,17 @@
+   Compiling dataloom v0.1.0 (/home/bhaveshajengi/chain-weaver-fixed)
+error: cannot find attribute `public` in this scope
+  --> src/lib.rs:23:3
+   |
+23 | #[public]
+   |   ^^^^^^
+
+error[E0277]: the trait bound `DataLoom: Router<_>` is not satisfied
+  --> src/lib.rs:13:5
+   |
+13 |     #[entrypoint]
+   |     ^^^^^^^^^^^^^ the trait `Router<_>` is not implemented for `DataLoom`
+   |
+   = note: this error originates in the attribute macro `entrypoint` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `dataloom` (lib) due to 2 previous errors

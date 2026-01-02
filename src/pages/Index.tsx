@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Problem from "@/components/Problem";
 import Solution from "@/components/Solution";
+import ArchitectureDiagram from "@/components/ArchitectureDiagram";
 import Demo from "@/components/Demo";
 import Gallery from "@/components/Gallery";
 import UseCases from "@/components/UseCases";
@@ -14,7 +15,7 @@ const Index = () => {
   useEffect(() => {
     // Smooth scroll behavior for the entire page
     document.documentElement.style.scrollBehavior = "smooth";
-    
+
     return () => {
       document.documentElement.style.scrollBehavior = "auto";
     };
@@ -28,6 +29,7 @@ const Index = () => {
         <Hero />
         <Problem />
         <Solution />
+        <ArchitectureDiagram />
         <Demo />
         <Gallery />
         <UseCases />
@@ -39,3 +41,4 @@ const Index = () => {
 };
 
 export default Index;
+

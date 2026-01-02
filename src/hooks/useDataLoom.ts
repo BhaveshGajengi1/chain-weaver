@@ -35,8 +35,8 @@ export function useDataLoom() {
   const contractAddress =
     (chain?.id
       ? (DATALOOM_CONTRACT_ADDRESS[
-          chain.id as keyof typeof DATALOOM_CONTRACT_ADDRESS
-        ] as `0x${string}` | undefined)
+        chain.id as keyof typeof DATALOOM_CONTRACT_ADDRESS
+      ] as `0x${string}` | undefined)
       : undefined) ?? DATALOOM_CONTRACT_ADDRESS[arbitrumSepolia.id] ?? ZERO_ADDRESS;
 
   const isContractDeployed = Boolean(contractAddress && contractAddress !== ZERO_ADDRESS);
@@ -50,6 +50,7 @@ export function useDataLoom() {
     abi: DATALOOM_ABI,
     functionName: 'get_canvas_count',
     query: { enabled: isContractDeployed },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
   // Try camelCase as fallback
@@ -58,6 +59,7 @@ export function useDataLoom() {
     abi: DATALOOM_ABI,
     functionName: 'getCanvasCount',
     query: { enabled: isContractDeployed && countSnake === undefined },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
   const canvasCount = (countSnake ?? countCamel) as bigint | undefined;
@@ -76,15 +78,20 @@ export function useDataLoom() {
       hash: txHash,
     });
 
-  const pickNiceError = (error: any) => {
-    return (
-      error?.shortMessage ||
-      error?.cause?.shortMessage ||
-      error?.cause?.reason ||
-      error?.details ||
-      error?.message ||
-      'Transaction failed'
-    );
+  const pickNiceError = (error: unknown) => {
+    // Type guard to safely access error properties
+    if (error && typeof error === 'object') {
+      const err = error as Record<string, unknown>;
+      return (
+        (err.shortMessage as string) ||
+        ((err.cause as Record<string, unknown>)?.shortMessage as string) ||
+        ((err.cause as Record<string, unknown>)?.reason as string) ||
+        (err.details as string) ||
+        (err.message as string) ||
+        'Transaction failed'
+      );
+    }
+    return 'Transaction failed';
   };
 
   // Store pixels on-chain
@@ -105,30 +112,22 @@ export function useDataLoom() {
       try {
         const encodedPixels = encodePixels(pixels);
 
-        console.log('Storing pixels:', {
-          contractAddress,
-          pixelCount: pixels.length,
-          encodedLength: encodedPixels.length,
-          metadata,
-        });
-
         toast.loading('Preparing transaction...', { id: 'store' });
 
         // Stylus contracts use snake_case function names
-        // Skip simulation as it often fails with Stylus contracts on Arbitrum
         const hash = await writeContractAsync({
           address: contractAddress,
           abi: DATALOOM_ABI,
           functionName: 'store_pixels',
           args: [encodedPixels, metadata],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
 
-        console.log('Transaction submitted:', hash);
         toast.loading('Waiting for transaction confirmation...', { id: 'store' });
 
         return hash;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
-        console.error('Error storing pixels:', error);
         toast.error(pickNiceError(error), { id: 'store' });
         return null;
       } finally {
@@ -153,6 +152,7 @@ export function useDataLoom() {
             abi: DATALOOM_ABI,
             functionName: fn,
             args: [canvasId],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any)) as [string, string, `0x${string}`, bigint];
 
         let result: [string, string, `0x${string}`, bigint];
@@ -181,7 +181,6 @@ export function useDataLoom() {
           timestamp,
         };
       } catch (error) {
-        console.error('Error fetching canvas:', error);
         return null;
       }
     },
@@ -239,7 +238,6 @@ export function useGallery(limit: number = 10) {
 
         setHasMore(startIndex > 0);
       } catch (error) {
-        console.error('Error loading gallery:', error);
         toast.error('Failed to load gallery');
       } finally {
         setIsLoading(false);

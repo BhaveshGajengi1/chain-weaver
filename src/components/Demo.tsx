@@ -21,7 +21,7 @@ const Demo = () => {
   const { switchChain } = useSwitchChain();
   const { storePixels, isStoring, isConfirmed, isContractDeployed, txHash } = useDataLoom();
 
-  // Contract is only deployed on Sepolia for now
+  // Contract is only deployed on Sepolia
   const isCorrectNetwork = chain?.id === arbitrumSepolia.id;
 
   const colors = ["#E9A23B", "#3B82F6", "#10B981", "#EF4444", "#8B5CF6", "#F59E0B"];
@@ -31,17 +31,23 @@ const Demo = () => {
 
   const addPixel = useCallback((clientX: number, clientY: number) => {
     if (!canvasRef.current) return;
-    
+
     const rect = canvasRef.current.getBoundingClientRect();
     const x = Math.floor((clientX - rect.left) / 10) * 10;
     const y = Math.floor((clientY - rect.top) / 10) * 10;
 
-    // Avoid duplicates
-    if (!pixels.some((p) => p.x === x && p.y === y)) {
-      pixelIdRef.current += 1;
-      setPixels((prev) => [...prev, { x, y, color: selectedColor, id: pixelIdRef.current }]);
-    }
-  }, [pixels, selectedColor]);
+    // Use functional update to avoid stale closure
+    // Generate unique ID based on position to ensure no duplicates
+    setPixels((prev) => {
+      // Check if pixel already exists at this position
+      if (prev.some((p) => p.x === x && p.y === y)) {
+        return prev;
+      }
+      // Create unique ID based on x,y coordinates
+      const uniqueId = x * 10000 + y;
+      return [...prev, { x, y, color: selectedColor, id: uniqueId }];
+    });
+  }, [selectedColor]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDrawing) return;
@@ -64,9 +70,24 @@ const Demo = () => {
   };
 
   const handleConnect = () => {
-    const metamask = connectors.find(c => c.id === 'injected');
-    if (metamask) {
-      connect({ connector: metamask });
+    // If there's only one connector or user has MetaMask, connect directly
+    if (connectors.length === 1) {
+      connect({ connector: connectors[0] });
+    } else {
+      // Show wallet selection - try injected first, then WalletConnect
+      const injectedConnector = connectors.find(c => c.id === 'injected');
+      const walletConnectConnector = connectors.find(c => c.id === 'walletConnect');
+
+      // If user has MetaMask/injected wallet, prefer that
+      if (injectedConnector && typeof window !== 'undefined' && (window as unknown as { ethereum?: unknown }).ethereum) {
+        connect({ connector: injectedConnector });
+      } else if (walletConnectConnector) {
+        // Otherwise use WalletConnect which will show QR code
+        connect({ connector: walletConnectConnector });
+      } else if (injectedConnector) {
+        // Fallback to injected (will prompt to install wallet)
+        connect({ connector: injectedConnector });
+      }
     }
   };
 
@@ -74,7 +95,7 @@ const Demo = () => {
     if (!isConnected || pixels.length === 0) return;
 
     const pixelData = pixels.map(p => ({ x: p.x, y: p.y, color: p.color }));
-    
+
     if (isContractDeployed) {
       // Use actual contract
       const hash = await storePixels(pixelData, `Canvas created at ${new Date().toISOString()}`);
@@ -98,7 +119,7 @@ const Demo = () => {
       await new Promise(resolve => setTimeout(resolve, 2000));
       toast.success(
         `Demo: ${pixels.length} pixels would be stored on-chain!`,
-        { 
+        {
           id: "store-tx",
           description: "Deploy contract to enable real storage",
         }
@@ -135,8 +156,8 @@ const Demo = () => {
               The Eternal Canvas
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              An infinite, persistent drawing board that lives 100% on-chain. Every pixel 
-              is stored via DataLoom. No off-chain server, no IPFS, no admin key. 
+              An infinite, persistent drawing board that lives 100% on-chain. Every pixel
+              is stored via DataLoom. No off-chain server, no IPFS, no admin key.
               Art that lives by the consensus of the chain, forever.
             </p>
           </motion.div>
@@ -154,7 +175,7 @@ const Demo = () => {
               transition={{ duration: 3, repeat: Infinity }}
               className="absolute -inset-4 bg-primary/10 rounded-3xl blur-2xl"
             />
-            
+
             <div className="relative bg-card rounded-2xl border border-border overflow-hidden">
               {/* Canvas header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
@@ -190,9 +211,8 @@ const Demo = () => {
                       onClick={() => setSelectedColor(color)}
                       whileHover={{ scale: 1.15 }}
                       whileTap={{ scale: 0.95 }}
-                      className={`w-6 h-6 rounded-full transition-all ${
-                        selectedColor === color ? "ring-2 ring-foreground ring-offset-2 ring-offset-card" : ""
-                      }`}
+                      className={`w-6 h-6 rounded-full transition-all ${selectedColor === color ? "ring-2 ring-foreground ring-offset-2 ring-offset-card" : ""
+                        }`}
                       style={{ backgroundColor: color }}
                     />
                   ))}
@@ -301,7 +321,7 @@ const Demo = () => {
                     <RotateCcw className="w-3 h-3 mr-1" />
                     Clear
                   </Button>
-                  
+
                   {!isConnected ? (
                     <Button
                       variant="hero"

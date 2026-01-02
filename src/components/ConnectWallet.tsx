@@ -5,6 +5,13 @@ import { Wallet, ChevronDown, LogOut, AlertCircle } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { arbitrumSepolia } from 'wagmi/chains';
 
+// Extend Window interface for ethereum
+declare global {
+  interface Window {
+    ethereum?: unknown;
+  }
+}
+
 const ConnectWallet = () => {
   const { address, isConnected, chain } = useAccount();
   const { connect, connectors, isPending } = useConnect();
@@ -30,9 +37,24 @@ const ConnectWallet = () => {
   };
 
   const handleConnect = () => {
-    const metamask = connectors.find(c => c.id === 'injected');
-    if (metamask) {
-      connect({ connector: metamask });
+    // If there's only one connector or user has MetaMask, connect directly
+    if (connectors.length === 1) {
+      connect({ connector: connectors[0] });
+    } else {
+      // Show wallet selection - try injected first, then WalletConnect
+      const injectedConnector = connectors.find(c => c.id === 'injected');
+      const walletConnectConnector = connectors.find(c => c.id === 'walletConnect');
+
+      // If user has MetaMask/injected wallet, prefer that
+      if (injectedConnector && typeof window !== 'undefined' && window.ethereum) {
+        connect({ connector: injectedConnector });
+      } else if (walletConnectConnector) {
+        // Otherwise use WalletConnect which will show QR code
+        connect({ connector: walletConnectConnector });
+      } else if (injectedConnector) {
+        // Fallback to injected (will prompt to install wallet)
+        connect({ connector: injectedConnector });
+      }
     }
   };
 

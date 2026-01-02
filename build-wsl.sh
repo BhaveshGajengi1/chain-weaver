@@ -24,6 +24,10 @@ cd "$BUILD_DIR"
 echo "🧹 Cleaning previous build artifacts..."
 rm -rf target
 
+# Source Rust environment
+echo "🦀 Loading Rust environment..."
+source ~/.cargo/env
+
 # Build the contract
 echo "🔨 Building contract..."
 cargo build --target wasm32-unknown-unknown --release

@@ -17,11 +17,10 @@ sol_storage! {
         mapping(uint256 => string) metadata;
         mapping(uint256 => address) creators;
         mapping(uint256 => uint256) timestamps;
-        mapping(address => uint256[]) creator_canvases;
     }
 }
 
-#[external]
+#[public]
 impl DataLoom {
     pub fn store_pixels(&mut self, pixel_data: Vec<u8>, metadata: String) -> U256 {
         let caller = msg::sender();
@@ -34,9 +33,6 @@ impl DataLoom {
         self.metadata.setter(canvas_id).set_str(&metadata);
         self.creators.setter(canvas_id).set(caller);
         self.timestamps.setter(canvas_id).set(timestamp);
-        
-        let mut creator_list = self.creator_canvases.setter(caller);
-        creator_list.push(canvas_id);
         
         canvas_id
     }
@@ -55,17 +51,7 @@ impl DataLoom {
         self.canvas_count.get()
     }
     
-    pub fn get_canvases_by_creator(&self, creator: Address) -> Vec<U256> {
-        let list = self.creator_canvases.get(creator);
-        let len = list.len();
-        let mut result = Vec::with_capacity(len);
-        
-        for i in 0..len {
-            if let Some(id) = list.get(i) {
-                result.push(id);
-            }
-        }
-        
-        result
+    pub fn get_creator(&self, canvas_id: U256) -> Address {
+        self.creators.get(canvas_id)
     }
 }

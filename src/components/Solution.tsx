@@ -1,41 +1,46 @@
-import { Zap, GitBranch, Layers, ArrowDown } from "lucide-react";
+import { Archive, GitBranch, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { useScrollAnimation, fadeUpVariants } from "@/hooks/useScrollAnimation";
 
 const Solution = () => {
   const { ref, isInView } = useScrollAnimation();
 
-  const steps = [
+  const features = [
     {
-      icon: Zap,
-      step: "01",
-      title: "Compress",
-      description: "Efficiently compress large data (images, maps, models) using Rust/WASM-powered algorithms directly on-chain.",
-      color: "primary",
+      icon: Archive,
+      title: "Compression Engine",
+      description: "Efficient Rust/WASM-powered compression for on-chain data. Reduce storage costs by up to 10x while maintaining full verifiability.",
+      gradient: "from-primary/20 to-primary/5",
+      iconColor: "text-primary",
+      borderColor: "border-primary/30",
     },
     {
       icon: GitBranch,
-      step: "02",
-      title: "Weave",
-      description: "Stitch compressed data into a verifiable Merkle tapestry stored permanently on Arbitrum.",
-      color: "accent",
+      title: "Merkle Fabric",
+      description: "Chunked Merkle structure for proof-driven storage. Every byte is verifiable with cryptographic guarantees.",
+      gradient: "from-accent/20 to-accent/5",
+      iconColor: "text-accent",
+      borderColor: "border-accent/30",
     },
     {
-      icon: Layers,
-      step: "03",
-      title: "Unspool",
-      description: "Retrieve and decompress data on-demand for other contracts within a single transaction.",
-      color: "primary",
+      icon: Zap,
+      title: "Proof Retrieval",
+      description: "Fast, secure decompression with on-chain proofs. Access your data within a single transaction with zero trust assumptions.",
+      gradient: "from-primary/20 to-primary/5",
+      iconColor: "text-primary",
+      borderColor: "border-primary/30",
     },
   ];
 
   return (
-    <section id="solution" className="py-24 relative" ref={ref}>
-      {/* Background accent */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
+    <section id="solution" className="py-32 relative overflow-hidden" ref={ref}>
+      {/* Background elements */}
+      <div className="absolute inset-0 bg-gradient-mesh opacity-30" />
+      <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse-glow" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-3xl animate-pulse-glow animation-delay-400" />
 
-      <div className="container mx-auto px-6 relative">
-        <div className="max-w-5xl mx-auto">
+      <div className="container mx-auto px-6 relative z-10">
+        <div className="max-w-7xl mx-auto">
           {/* Section header */}
           <motion.div
             initial="hidden"
@@ -44,112 +49,89 @@ const Solution = () => {
             transition={{ duration: 0.6 }}
             className="text-center mb-20"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
               <Zap className="w-4 h-4 text-primary" />
-              <span className="text-sm text-primary">The Solution</span>
+              <span className="text-sm font-medium">Product Overview</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6">
-              What if You Could
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
+              Three Core Pillars of
               <br />
-              <span className="text-gradient-loom">Compress Reality</span>
-              <br />
-              Before Stitching It Into The Chain?
+              <span className="text-gradient-primary">On-Chain Data Storage</span>
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              DataLoom is a high-performance Rust/WASM smart contract that acts as a 
-              programmable data loom—active, verifiable, and composable data infrastructure 
-              native to Arbitrum.
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto">
+              DataLoom combines compression, verification, and retrieval into a seamless
+              on-chain experience. Built with Rust and Stylus for maximum performance.
             </p>
           </motion.div>
 
-          {/* Process steps */}
-          <div className="relative">
-            {/* Connecting line */}
-            <motion.div
-              initial={{ scaleY: 0 }}
-              animate={isInView ? { scaleY: 1 } : { scaleY: 0 }}
-              transition={{ duration: 1, delay: 0.3 }}
-              style={{ transformOrigin: "top" }}
-              className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-primary via-accent to-primary opacity-30 hidden lg:block"
-            />
-
-            <div className="space-y-8 lg:space-y-0">
-              {steps.map((step, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: index % 2 === 0 ? -50 : 50 }}
-                  animate={isInView ? { opacity: 1, x: 0 } : {}}
-                  transition={{ duration: 0.6, delay: 0.2 + index * 0.2 }}
-                  className="relative"
-                >
-                  <div
-                    className={`flex flex-col lg:flex-row items-center gap-8 ${
-                      index % 2 === 1 ? "lg:flex-row-reverse" : ""
-                    }`}
-                  >
-                    {/* Content */}
-                    <div className={`flex-1 ${index % 2 === 1 ? "lg:text-right" : ""}`}>
-                      <motion.div
-                        whileHover={{ scale: 1.02 }}
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-mono mb-4 ${
-                          step.color === "primary"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-accent/10 text-accent"
-                        }`}
-                      >
-                        STEP {step.step}
-                      </motion.div>
-                      <h3 className="text-2xl sm:text-3xl font-bold mb-3">{step.title}</h3>
-                      <p className="text-muted-foreground max-w-md">{step.description}</p>
-                    </div>
-
-                    {/* Icon */}
+          {/* Feature cards grid */}
+          <div className="grid md:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 50 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.6, delay: 0.2 + index * 0.15 }}
+                whileHover={{ y: -12, scale: 1.02 }}
+                className="group"
+              >
+                <div className="card-premium h-full flex flex-col">
+                  {/* Icon container with animated background */}
+                  <div className="relative mb-6">
                     <motion.div
-                      className="relative"
-                      whileHover={{ scale: 1.1, rotate: 5 }}
-                      transition={{ type: "spring", stiffness: 300 }}
+                      className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${feature.gradient} border ${feature.borderColor} flex items-center justify-center relative z-10`}
+                      whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                      transition={{ duration: 0.5 }}
                     >
-                      <div
-                        className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
-                          step.color === "primary"
-                            ? "bg-primary/10 border border-primary/30"
-                            : "bg-accent/10 border border-accent/30"
-                        }`}
-                      >
-                        <step.icon
-                          className={`w-8 h-8 ${
-                            step.color === "primary" ? "text-primary" : "text-accent"
-                          }`}
-                        />
-                      </div>
-                      {/* Glow effect */}
-                      <motion.div
-                        animate={{ opacity: [0.3, 0.5, 0.3] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                        className={`absolute inset-0 rounded-2xl blur-xl ${
-                          step.color === "primary" ? "bg-primary" : "bg-accent"
-                        }`}
-                      />
+                      <feature.icon className={`w-8 h-8 ${feature.iconColor}`} />
                     </motion.div>
-
-                    {/* Spacer */}
-                    <div className="flex-1 hidden lg:block" />
+                    {/* Animated glow */}
+                    <motion.div
+                      className={`absolute inset-0 ${feature.iconColor.replace('text-', 'bg-')} opacity-0 group-hover:opacity-30 blur-2xl rounded-2xl transition-opacity duration-500`}
+                      animate={{
+                        scale: [1, 1.2, 1],
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                    />
                   </div>
 
-                  {/* Arrow between steps */}
-                  {index < steps.length - 1 && (
-                    <motion.div
-                      animate={{ y: [0, 8, 0] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                      className="flex justify-center my-6 lg:hidden"
-                    >
-                      <ArrowDown className="w-6 h-6 text-muted-foreground" />
-                    </motion.div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
+                  {/* Content */}
+                  <h3 className="text-2xl font-bold mb-4 group-hover:text-gradient-primary transition-all duration-300">
+                    {feature.title}
+                  </h3>
+                  <p className="text-muted-foreground leading-relaxed flex-grow">
+                    {feature.description}
+                  </p>
+
+                  {/* Decorative element */}
+                  <div className="mt-6 pt-6 border-t border-border/50">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className={`w-2 h-2 rounded-full ${feature.iconColor.replace('text-', 'bg-')} animate-pulse`} />
+                      <span>Fully On-Chain</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
+
+          {/* Bottom CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="text-center mt-16"
+          >
+            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full glass">
+              <span className="text-sm text-muted-foreground">
+                Powered by Arbitrum Stylus for maximum efficiency
+              </span>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
@@ -157,3 +139,4 @@ const Solution = () => {
 };
 
 export default Solution;
+
