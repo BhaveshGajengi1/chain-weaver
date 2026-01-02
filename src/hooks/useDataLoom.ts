@@ -17,6 +17,15 @@ import { toast } from 'sonner';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
+const getStoreGasLimit = (pixelCount: number) => {
+  // Gas estimation can fail on some RPCs for Stylus contracts; providing a safe
+  // gas limit avoids `eth_estimateGas` JSON-RPC errors.
+  const base = 1_200_000;
+  const perPixel = 22_000;
+  const max = 12_000_000;
+  return BigInt(Math.min(max, base + pixelCount * perPixel));
+};
+
 type GetCanvasFnName = 'getCanvas' | 'get_canvas';
 
 export type CanvasData = {
@@ -35,8 +44,8 @@ export function useDataLoom() {
   const contractAddress =
     (chain?.id
       ? (DATALOOM_CONTRACT_ADDRESS[
-        chain.id as keyof typeof DATALOOM_CONTRACT_ADDRESS
-      ] as `0x${string}` | undefined)
+          chain.id as keyof typeof DATALOOM_CONTRACT_ADDRESS
+        ] as `0x${string}` | undefined)
       : undefined) ?? DATALOOM_CONTRACT_ADDRESS[arbitrumSepolia.id] ?? ZERO_ADDRESS;
 
   const isContractDeployed = Boolean(contractAddress && contractAddress !== ZERO_ADDRESS);
@@ -50,7 +59,6 @@ export function useDataLoom() {
     abi: DATALOOM_ABI,
     functionName: 'get_canvas_count',
     query: { enabled: isContractDeployed },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
   // Try camelCase as fallback
@@ -59,7 +67,6 @@ export function useDataLoom() {
     abi: DATALOOM_ABI,
     functionName: 'getCanvasCount',
     query: { enabled: isContractDeployed && countSnake === undefined },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
   const canvasCount = (countSnake ?? countCamel) as bigint | undefined;
@@ -72,27 +79,123 @@ export function useDataLoom() {
   // Write contract
   const { writeContractAsync, data: txHash } = useWriteContract();
 
-  // Wait for transaction
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({
-      hash: txHash,
-    });
+  // Wait for transaction (only when we actually have a hash)
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    isError: isTxError,
+    error: txError,
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+    query: { enabled: Boolean(txHash) },
+  });
 
-  const pickNiceError = (error: unknown) => {
-    // Type guard to safely access error properties
-    if (error && typeof error === 'object') {
-      const err = error as Record<string, unknown>;
-      return (
-        (err.shortMessage as string) ||
-        ((err.cause as Record<string, unknown>)?.shortMessage as string) ||
-        ((err.cause as Record<string, unknown>)?.reason as string) ||
-        (err.details as string) ||
-        (err.message as string) ||
-        'Transaction failed'
-      );
+  const pickNiceError = (error: any): string => {
+    const messages = [
+      error?.shortMessage,
+      error?.message,
+      error?.details,
+      ...(Array.isArray(error?.metaMessages) ? error.metaMessages : []),
+      error?.cause?.shortMessage,
+      error?.cause?.message,
+      error?.cause?.details,
+      ...(Array.isArray(error?.cause?.metaMessages) ? error.cause.metaMessages : []),
+      error?.cause?.cause?.shortMessage,
+      error?.cause?.cause?.message,
+      error?.cause?.cause?.details,
+    ]
+      .filter(Boolean)
+      .map((m) => String(m));
+
+    const haystack = messages.join(' | ');
+    const haystackLower = haystack.toLowerCase();
+
+    const clean = (s: string) =>
+      s
+        .replace(/^.*json[- ]rpc.*?:\s*/i, '')
+        .replace(/^execution reverted:\s*/i, '')
+        .trim();
+
+    const truncate = (s: string, n = 180) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+    // User rejected the transaction
+    if (
+      error?.code === 4001 ||
+      error?.cause?.code === 4001 ||
+      haystackLower.includes('user rejected')
+    ) {
+      return 'Transaction cancelled';
     }
-    return 'Transaction failed';
+
+    // Wrong / unsupported network
+    if (
+      haystackLower.includes('chain') &&
+      (haystackLower.includes('not configured') ||
+        haystackLower.includes('unsupported') ||
+        haystackLower.includes('wrong network'))
+    ) {
+      return 'Wrong network. Switch to Arbitrum Sepolia.';
+    }
+
+    // Insufficient funds
+    if (haystackLower.includes('insufficient funds')) {
+      return 'Insufficient ETH for gas fees (Arbitrum Sepolia).';
+    }
+
+    // Nonce / replacement issues
+    if (haystackLower.includes('nonce too low')) {
+      return 'Nonce too low. Try again in a moment.';
+    }
+    if (haystackLower.includes('replacement transaction underpriced')) {
+      return 'A previous transaction is pending. Speed up or cancel it in your wallet.';
+    }
+
+    // Gas estimation failures
+    if (
+      haystackLower.includes('estimate gas') ||
+      haystackLower.includes('eth_estimategas') ||
+      haystackLower.includes('gas required exceeds allowance')
+    ) {
+      return 'Gas estimation failed. Please try again (and ensure you have test ETH for gas).';
+    }
+
+    // Contract revert - extract reason if possible
+    const reason = error?.cause?.reason || error?.reason;
+    if (reason) {
+      const reasonLower = String(reason).toLowerCase();
+      if (reasonLower.includes('internal json-rpc error') || reasonLower.includes('internal error')) {
+        return 'RPC node error. Please try again in a moment.';
+      }
+      return `Contract error: ${truncate(String(reason))}`;
+    }
+
+    // Generic revert
+    if (haystackLower.includes('execution reverted') || haystackLower.includes('revert')) {
+      return 'Transaction reverted by contract.';
+    }
+
+    // Internal JSON-RPC error (generic RPC failure)
+    if (haystackLower.includes('internal json-rpc error') || haystackLower.includes('internal error')) {
+      return 'RPC node error. Please try again in a moment.';
+    }
+
+    // Prefer short messages (but keep them clean)
+    const short = clean(String(error?.shortMessage || error?.cause?.shortMessage || ''));
+    if (short) return truncate(short);
+
+    // Fallback to any captured message
+    const fallback = clean(messages[0] ?? '');
+    if (fallback) return truncate(fallback);
+
+    return 'Transaction failed. Please try again.';
   };
+
+  // Never surface low-level RPC noise to users
+  useEffect(() => {
+    if (!isTxError || !txError) return;
+
+    toast.error(pickNiceError(txError), { id: 'store' });
+  }, [isTxError, txError]);
 
   // Store pixels on-chain
   const storePixels = useCallback(
@@ -107,34 +210,115 @@ export function useDataLoom() {
         return null;
       }
 
+      if (chain?.id !== arbitrumSepolia.id) {
+        toast.error('Wrong network. Switch to Arbitrum Sepolia.');
+        return null;
+      }
+
+      // NOTE: `useBalance()` was causing a runtime crash in some environments (null getSnapshot).
+      // We do a just-in-time balance check instead.
+      try {
+        const { getBalance } = await import('wagmi/actions');
+        const { config } = await import('@/lib/web3-config');
+        const bal = await getBalance(config, {
+          address,
+          chainId: arbitrumSepolia.id,
+        });
+
+        if (!bal?.value || bal.value === 0n) {
+          toast.error('No Arbitrum Sepolia ETH for gas fees.', {
+            id: 'store',
+            description: 'Grab a little test ETH from a faucet, then try again.',
+            action: {
+              label: 'Get test ETH',
+              onClick: () => window.open('https://faucets.chain.link/arbitrum-sepolia', '_blank'),
+            },
+          });
+          return null;
+        }
+      } catch (balanceError) {
+        // If balance check fails due to RPC/provider hiccups, don't block the transaction.
+        console.warn('Balance check failed, continuing:', balanceError);
+      }
+
       setIsStoring(true);
 
       try {
         const encodedPixels = encodePixels(pixels);
+        const gasLimit = getStoreGasLimit(pixels.length);
+
+        console.log('Storing pixels:', {
+          contractAddress,
+          pixelCount: pixels.length,
+          encodedLength: encodedPixels.length,
+          gasLimit: gasLimit.toString(),
+          metadata,
+        });
 
         toast.loading('Preparing transaction...', { id: 'store' });
 
-        // Stylus contracts use snake_case function names
-        const hash = await writeContractAsync({
+        // Stylus contracts usually expose snake_case names, but fall back to camelCase.
+        // Provide a safe gas limit explicitly (as `gas`) to avoid flaky estimateGas on some RPCs.
+        const txBase = {
           address: contractAddress,
           abi: DATALOOM_ABI,
-          functionName: 'store_pixels',
           args: [encodedPixels, metadata],
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
+          gas: gasLimit,
+        } as any;
 
+        let hash: `0x${string}`;
+        try {
+          hash = await writeContractAsync({
+            ...txBase,
+            functionName: 'store_pixels',
+          });
+        } catch (writeError: any) {
+          const errText = String(
+            [
+              writeError?.shortMessage,
+              writeError?.message,
+              writeError?.details,
+              writeError?.cause?.shortMessage,
+              writeError?.cause?.message,
+              writeError?.cause?.details,
+            ]
+              .filter(Boolean)
+              .join(' | '),
+          ).toLowerCase();
+
+          if (
+            errText.includes('method not found') ||
+            errText.includes('function selector') ||
+            errText.includes('unknown function')
+          ) {
+            try {
+              hash = await writeContractAsync({
+                ...txBase,
+                functionName: 'storePixels',
+              });
+            } catch (fallbackError: any) {
+              throw new Error(pickNiceError(fallbackError));
+            }
+          } else {
+            throw new Error(pickNiceError(writeError));
+          }
+        }
+
+        console.log('Transaction submitted:', hash);
         toast.loading('Waiting for transaction confirmation...', { id: 'store' });
 
         return hash;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
-        toast.error(pickNiceError(error), { id: 'store' });
+        console.error('Error storing pixels:', error);
+        // Error is already transformed, show it directly
+        const msg = error?.message || 'Transaction failed. Please try again.';
+        toast.error(msg, { id: 'store' });
         return null;
       } finally {
         setIsStoring(false);
       }
     },
-    [address, contractAddress, isContractDeployed, writeContractAsync],
+    [address, chain?.id, contractAddress, isContractDeployed, writeContractAsync],
   );
 
   // Fetch canvas by ID
@@ -152,7 +336,6 @@ export function useDataLoom() {
             abi: DATALOOM_ABI,
             functionName: fn,
             args: [canvasId],
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any)) as [string, string, `0x${string}`, bigint];
 
         let result: [string, string, `0x${string}`, bigint];
@@ -181,6 +364,7 @@ export function useDataLoom() {
           timestamp,
         };
       } catch (error) {
+        console.error('Error fetching canvas:', error);
         return null;
       }
     },
@@ -238,6 +422,7 @@ export function useGallery(limit: number = 10) {
 
         setHasMore(startIndex > 0);
       } catch (error) {
+        console.error('Error loading gallery:', error);
         toast.error('Failed to load gallery');
       } finally {
         setIsLoading(false);
